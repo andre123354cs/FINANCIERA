@@ -22,16 +22,16 @@
 <body onload="loadCacheOnStart()">
 
 <div class="container">
-    <h1 class="text-center">Comfama Financiera - YesBPO</h1>
+    <h1 class="text-center">Comfama Financiera - YesBPO | Automatización</h1>
     
-    <div class="alert alert-warning py-2 mb-4" id="cacheStatus">⚙️ Inicializando caché local (IndexedDB)...</div>
+    <div class="alert alert-warning py-2 mb-4" id="cacheStatus" style="display:none;"></div>
 
     <div id="pagosSection" class="section-panel">
-        <div class="section-title text-success">1. Carpeta de Pagos</div>
+        <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Transformación)</div>
         
         <p class="fw-bold">1.1 Carga de Carpeta de Pagos</p>
         <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="pagosFolderInput">
-        <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** (si desea actualizar el caché) o cargue directamente el Paso 2.</div>
+        <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** (si desea actualizar la data) o cargue directamente el Paso 2.</div>
         
         <div class="alert alert-light mt-2 py-1" id="pagosProcessStatus" style="display:none;"></div>
         
@@ -45,7 +45,7 @@
     </div>
     
     <div class="section-panel step-divider">
-        <div class="section-title">2. Carpeta de Asignaciones</div>
+        <div class="section-title">2. Carpeta de Asignaciones (Proceso Automático)</div>
         
         <p class="fw-bold">2.1 Carga de Carpeta de Asignaciones (Principal)</p>
         <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput">
@@ -94,7 +94,7 @@
     const anexoStatus = document.getElementById('anexoStatus');
     const dedupeStatus = document.getElementById('dedupeStatus');
     const downloadMergeBtn = document.getElementById('downloadMergeBtn');
-    const cacheStatus = document.getElementById('cacheStatus');
+    const cacheStatus = document.getElementById('cacheStatus'); // Lo mantenemos pero oculto
     
     // Elementos del nuevo Paso 1 (Pagos)
     const pagosFolderInput = document.getElementById('pagosFolderInput');
@@ -118,16 +118,15 @@
     function initDB() {
         return new Promise((resolve, reject) => {
             if (!window.indexedDB) {
-                cacheStatus.textContent = '❌ IndexedDB no soportado. Caché deshabilitado.';
-                cacheStatus.className = 'alert alert-danger py-2 mb-4';
-                return reject('IndexedDB not supported');
+                // Si no hay soporte, solo logeamos el error (en consola) y resolvemos.
+                console.warn('IndexedDB no soportado. Caché deshabilitado.');
+                return resolve(null);
             }
 
             const request = window.indexedDB.open("ComfamaCacheDB", 1);
 
             request.onerror = (event) => {
-                cacheStatus.textContent = `❌ Error al abrir la base de datos: ${event.target.errorCode}`;
-                cacheStatus.className = 'alert alert-danger py-2 mb-4';
+                console.error(`Error al abrir la base de datos: ${event.target.errorCode}`, event.target.error);
                 reject(event.target.error);
             };
 
@@ -138,7 +137,6 @@
 
             request.onupgradeneeded = (event) => {
                 const dbInstance = event.target.result;
-                // Creamos un almacén de objetos para guardar la data
                 if (!dbInstance.objectStoreNames.contains('dataStore')) {
                     dbInstance.createObjectStore('dataStore', { keyPath: 'key' });
                 }
@@ -147,7 +145,7 @@
     }
 
     function saveDataToCache(key, data) {
-        if (!db) return Promise.reject('DB not initialized');
+        if (!db) return Promise.resolve(); // Operación silenciosa si DB no está lista
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(['dataStore'], 'readwrite');
             const store = transaction.objectStore('dataStore');
@@ -156,14 +154,12 @@
             const request = store.put(dataToStore);
 
             request.onsuccess = () => {
-                cacheStatus.textContent = `💾 Caché de Pagos guardado correctamente. ${data.length} filas.`;
-                cacheStatus.className = 'alert alert-success py-2 mb-4';
+                // MENSAJE DE CACHÉ ELIMINADO/SILENCIADO
                 resolve();
             };
 
             request.onerror = (event) => {
-                cacheStatus.textContent = '⚠️ Error al guardar en caché.';
-                cacheStatus.className = 'alert alert-warning py-2 mb-4';
+                console.error('Error al guardar en caché.', event.target.error);
                 reject(event.target.error);
             };
         });
@@ -181,33 +177,36 @@
                 if (result && result.data && result.data.length > 0) {
                     const loadedData = result.data;
                     dataFilePagos = loadedData;
-                    cacheStatus.textContent = `🚀 Caché de Pagos cargado (${loadedData.length} filas). Listo para el cruce.`;
-                    cacheStatus.className = 'alert alert-success py-2 mb-4';
-                    pagosStatus.textContent = `✅ Data de Pagos cargada desde el caché.`;
+                    
+                    // MENSAJE DE CARGA DE CACHÉ SIMPLIFICADO Y MOVIDO
+                    pagosStatus.textContent = `✅ Data de Pagos (Caché) cargada. Lista para usar.`;
                     pagosStatus.className = 'alert alert-success py-1';
+                    
                     resolve(loadedData);
                 } else {
-                    cacheStatus.textContent = 'ℹ️ No se encontró caché de Pagos. Se requiere cargar la Carpeta de Pagos.';
-                    cacheStatus.className = 'alert alert-info py-2 mb-4';
+                    // MENSAJE DE CACHÉ NO ENCONTRADO SIMPLIFICADO
+                    pagosStatus.textContent = 'ℹ️ Data de Pagos no encontrada en caché. Cargue la Carpeta de Pagos (Paso 1).';
+                    pagosStatus.className = 'alert alert-info py-1';
                     resolve(null);
                 }
             };
 
             request.onerror = (event) => {
-                cacheStatus.textContent = '⚠️ Error al cargar el caché.';
-                cacheStatus.className = 'alert alert-warning py-2 mb-4';
+                console.error('Error al cargar el caché.', event.target.error);
                 resolve(null);
             };
         });
     }
 
     async function loadCacheOnStart() {
+        // Inicializa DB de forma silenciosa
         try {
             await initDB();
+            // Intenta cargar la data de Pagos
             await loadDataFromCache(CACHE_KEY_PAGOS);
-            // Si la data de asignaciones se carga antes de los pagos, el cruce se disparará automáticamente.
+            
         } catch (e) {
-            // Manejado en initDB, no es necesario hacer más aquí.
+            console.error('Fallo grave al inicializar la base de datos de caché.', e);
         }
     }
 
@@ -285,13 +284,10 @@
         if (value === null || value === undefined) return 0;
         let strValue = String(value).trim();
         
-        // 1. Buscar el índice del primer punto decimal
         const splitIndex = strValue.indexOf('.');
         
-        // 2. Extraer la parte entera: hasta el punto si existe, o toda la cadena
         let integerPart = (splitIndex !== -1) ? strValue.substring(0, splitIndex) : strValue;
         
-        // 3. Limpiar cualquier caracter no numérico (excepto el signo) y convertir a entero.
         integerPart = integerPart.replace(/[^0-9-]/g, ''); 
         return parseInt(integerPart, 10) || 0;
     }
@@ -304,7 +300,6 @@
             return;
         }
 
-        // Simplemente aseguramos que las columnas de Pagos (Secundario) sean las del resultado transformado
         const key1_A = COL_DOC_PRIN;
         const key1_B = COL_DOC_PAGOS;
         const key2_A = COL_MES_PRIN;
@@ -333,10 +328,6 @@
                 }
             });
             
-            // Liberamos la memoria de la data de Pagos una vez el mapa está creado
-            // dataFilePagos = null; 
-
-            // 2. Realizar el LEFT JOIN (data1 - Asignaciones)
             const mergedResults = [];
             
             data1.forEach(row1 => {
@@ -356,15 +347,15 @@
             mergedData = mergedResults;
             
             if (mergedData.length > 0) {
-                dedupeStatus.textContent = `✅ Data lista para descargar.`;
+                dedupeStatus.textContent = `✅ **PROCESO FINALIZADO**. Data lista para descargar.`;
                 dedupeStatus.className = 'alert alert-success py-1';
                 downloadMergeBtn.style.display = 'block'; 
             } else {
-                dedupeStatus.textContent = `⚠️ Error: El cruce no generó resultados válidos.`;
+                dedupeStatus.textContent = `⚠️ Error: El cruce no generó resultados válidos. Revise la Carpeta de Pagos y la Carpeta de Asignaciones.`;
                 dedupeStatus.className = 'alert alert-danger py-1';
             }
             
-            processedDataAsignaciones = null; // Liberar memoria de Asignaciones
+            processedDataAsignaciones = null; 
 
         }, 50); 
     }
@@ -394,9 +385,8 @@
             return;
         }
 
-        pagosProcessStatus.textContent = `⚙️ Agrupando y transformando ${allData.length} filas (Calculando Máx. y Suma Entera)...`;
+        pagosProcessStatus.textContent = `⚙️ Agrupando y transformando datos (Max. Fecha y Suma Entera)...`;
         
-        // 1. Agrupar, transformar y agregar
         const aggregatedMap = new Map();
 
         allData.forEach(row => {
@@ -429,7 +419,6 @@
             }
         });
         
-        // 2. Formato final y guardado en la variable global
         const finalDataPagos = Array.from(aggregatedMap.values()).map(data => {
             return {
                 [COL_DOC_PAGOS]: data[COL_DOC_PAGOS],
@@ -441,13 +430,14 @@
         
         dataFilePagos = finalDataPagos;
 
-        // **AÑADIR A CACHÉ**
+        // Guardado en Caché silencioso
         await saveDataToCache(CACHE_KEY_PAGOS, dataFilePagos);
 
 
-        pagosProcessStatus.textContent = `✅ **Proceso de Pagos Completado**. Filas: ${dataFilePagos.length}. Data guardada en Caché.`;
+        // MENSAJE FINAL SIMPLIFICADO
+        pagosProcessStatus.textContent = `✅ Consolidación y Transformación de Pagos Completada.`;
         pagosProcessStatus.className = 'alert alert-success py-1';
-        pagosStatus.textContent = `Consolidación de Pagos finalizada. Ahora, cargue la Carpeta de Asignaciones (Paso 2).`;
+        pagosStatus.textContent = `Data de Pagos lista. Ahora, cargue la Carpeta de Asignaciones (Paso 2).`;
         pagosStatus.className = 'alert alert-success py-1';
 
         // Si la data de Asignaciones ya está lista, iniciar el cruce
@@ -461,9 +451,8 @@
     function executeAsignacionesPreProcess() {
         if (!dataFileAsignaciones) return; 
         
-        // Si no tenemos la data de Pagos (ni cacheada ni cargada), avisamos y paramos.
         if (!dataFilePagos) {
-            dedupeStatus.textContent = `⚠️ ERROR: Cargue la Carpeta de Pagos (Paso 1) primero para actualizar el caché y continuar.`;
+            dedupeStatus.textContent = `⚠️ ERROR: Cargue la Carpeta de Pagos (Paso 1) primero.`;
             dedupeStatus.className = 'alert alert-danger py-1';
             dedupeStatus.style.display = 'block';
             return;
@@ -542,7 +531,6 @@
             dedupeStatus.textContent = `✅ Limpieza de data de Asignaciones completada. Filas finales: ${finalRowCount}.`;
             dedupeStatus.className = 'alert alert-info py-1';
             
-            // Si la data de Pagos ya está cargada (sea desde caché o archivo)
             if (dataFilePagos) {
                 executeMerge();
             }
@@ -635,5 +623,3 @@
 
 </body>
 </html>
-
-
