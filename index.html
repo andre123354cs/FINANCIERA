@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comfama Financiera - YesBPO | Automatización de Datos</title>
+    <title>Comfama Financiera - YesBPO | Automatización de Datos con Caché</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -19,17 +19,19 @@
         .footer { padding: 15px 0; background-color: #e9ecef; color: #6c757d; text-align: center; margin-top: 20px; font-size: 0.85rem; }
     </style>
 </head>
-<body>
+<body onload="loadCacheOnStart()">
 
 <div class="container">
     <h1 class="text-center">Comfama Financiera - YesBPO | Automatización</h1>
+    
+    <div class="alert alert-warning py-2 mb-4" id="cacheStatus">⚙️ Inicializando caché local (IndexedDB)...</div>
 
     <div id="pagosSection" class="section-panel">
-        <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Transformación)</div>
+        <div class="section-title text-success">1. Carpeta de Pagos (Consolidación, Transformación y **Caché**)</div>
         
         <p class="fw-bold">1.1 Carga de Carpeta de Pagos</p>
         <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="pagosFolderInput">
-        <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** para iniciar la consolidación y transformación.</div>
+        <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** (si desea actualizar el caché) o cargue directamente el Paso 2.</div>
         
         <div class="alert alert-light mt-2 py-1" id="pagosProcessStatus" style="display:none;"></div>
         
@@ -79,57 +81,142 @@
 
 <script>
     // Variables globales
-    let dataFilePagos = null;    // Resultado del Paso 1 (Pagos procesados)
-    let dataFileAsignaciones = null; // Data consolidada cruda del Paso 2
-    let processedDataAsignaciones = null; // Resultado de la limpieza del Paso 2
+    let db;                     // Objeto IndexedDB
+    const CACHE_KEY_PAGOS = 'processedPagosData';
+
+    let dataFilePagos = null;    
+    let dataFileAsignaciones = null; 
+    let processedDataAsignaciones = null; 
     let mergedData = null;       
 
-    // Elementos del DOM (Simplificados, se mantienen para la lógica)
+    // Elementos del DOM
     const folderInput = document.getElementById('folderInput');
     const anexoStatus = document.getElementById('anexoStatus');
     const dedupeStatus = document.getElementById('dedupeStatus');
     const downloadMergeBtn = document.getElementById('downloadMergeBtn');
+    const cacheStatus = document.getElementById('cacheStatus');
     
     // Elementos del nuevo Paso 1 (Pagos)
     const pagosFolderInput = document.getElementById('pagosFolderInput');
     const pagosStatus = document.getElementById('pagosStatus');
     const pagosProcessStatus = document.getElementById('pagosProcessStatus');
     
-    // Selectores Ocultos (Mantenidos por consistencia de la lógica)
-    const docColSelect = document.getElementById('docColSelect'); 
-    const secAggColSelect = document.getElementById('secAggColSelect'); 
-    const minColSelect = document.getElementById('minColSelect');
-    const maxColSelect = document.getElementById('maxColSelect'); 
-    const dupCol1Select = document.getElementById('dupCol1Select');
-    const dupCol2Select = document.getElementById('dupCol2Select');
-    const dupCol3Select = document.getElementById('dupCol3Select');
-    const col1Select = document.getElementById('col1Select'); 
-    const col2Select = document.getElementById('col2Select'); 
-    const col3Select = document.getElementById('col3Select'); 
-    const col4Select = document.getElementById('col4Select'); 
-
-    // --- Definición de Nombres de Columnas para Automatización ---
-    // Asignaciones (Paso 2 - Principal)
+    // Nombres de Columnas
     const COL_DOC_PRIN = 'Numero Documento';
     const COL_MES_PRIN = 'Mes data';
     const COL_FECHA_PRIN = 'Nombre del archivo';
     const COL_ANIO_PRIN = 'Año';
-
-    // Pagos (Paso 1 - Secundario) - Columnas requeridas después de la transformación
     const COL_DOC_PAGOS = 'Numero de Documento';
     const COL_MES_PAGOS = 'MES';
     const COL_FECHA_MAX_PAGOS = 'Fecha_Movimiento_Maxima';
     const COL_VALOR_PAGADO = 'Suma_Valor_Pagado';
-    // Columnas a procesar en Pagos
-    const COL_VALOR_PAGADO_RAW = 'Valor Pagado'; // Nombre original
+    const COL_VALOR_PAGADO_RAW = 'Valor Pagado'; 
     const COL_FECHA_MOV = 'Fecha Movimiento'; 
 
-    // --- Funciones de Utilidad y Transformación ---
+    // --- Funciones de IndexedDB (CACHÉ) ---
+
+    function initDB() {
+        return new Promise((resolve, reject) => {
+            if (!window.indexedDB) {
+                cacheStatus.textContent = '❌ IndexedDB no soportado. Caché deshabilitado.';
+                cacheStatus.className = 'alert alert-danger py-2 mb-4';
+                return reject('IndexedDB not supported');
+            }
+
+            const request = window.indexedDB.open("ComfamaCacheDB", 1);
+
+            request.onerror = (event) => {
+                cacheStatus.textContent = `❌ Error al abrir la base de datos: ${event.target.errorCode}`;
+                cacheStatus.className = 'alert alert-danger py-2 mb-4';
+                reject(event.target.error);
+            };
+
+            request.onsuccess = (event) => {
+                db = event.target.result;
+                resolve(db);
+            };
+
+            request.onupgradeneeded = (event) => {
+                const dbInstance = event.target.result;
+                // Creamos un almacén de objetos para guardar la data
+                if (!dbInstance.objectStoreNames.contains('dataStore')) {
+                    dbInstance.createObjectStore('dataStore', { keyPath: 'key' });
+                }
+            };
+        });
+    }
+
+    function saveDataToCache(key, data) {
+        if (!db) return Promise.reject('DB not initialized');
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['dataStore'], 'readwrite');
+            const store = transaction.objectStore('dataStore');
+            const dataToStore = { key: key, data: data, timestamp: new Date() };
+
+            const request = store.put(dataToStore);
+
+            request.onsuccess = () => {
+                cacheStatus.textContent = `💾 Caché de Pagos guardado correctamente. ${data.length} filas.`;
+                cacheStatus.className = 'alert alert-success py-2 mb-4';
+                resolve();
+            };
+
+            request.onerror = (event) => {
+                cacheStatus.textContent = '⚠️ Error al guardar en caché.';
+                cacheStatus.className = 'alert alert-warning py-2 mb-4';
+                reject(event.target.error);
+            };
+        });
+    }
+
+    function loadDataFromCache(key) {
+        if (!db) return Promise.resolve(null);
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(['dataStore'], 'readonly');
+            const store = transaction.objectStore('dataStore');
+            const request = store.get(key);
+
+            request.onsuccess = () => {
+                const result = request.result;
+                if (result && result.data && result.data.length > 0) {
+                    const loadedData = result.data;
+                    dataFilePagos = loadedData;
+                    cacheStatus.textContent = `🚀 Caché de Pagos cargado (${loadedData.length} filas). Listo para el cruce.`;
+                    cacheStatus.className = 'alert alert-success py-2 mb-4';
+                    pagosStatus.textContent = `✅ Data de Pagos cargada desde el caché.`;
+                    pagosStatus.className = 'alert alert-success py-1';
+                    resolve(loadedData);
+                } else {
+                    cacheStatus.textContent = 'ℹ️ No se encontró caché de Pagos. Se requiere cargar la Carpeta de Pagos.';
+                    cacheStatus.className = 'alert alert-info py-2 mb-4';
+                    resolve(null);
+                }
+            };
+
+            request.onerror = (event) => {
+                cacheStatus.textContent = '⚠️ Error al cargar el caché.';
+                cacheStatus.className = 'alert alert-warning py-2 mb-4';
+                resolve(null);
+            };
+        });
+    }
+
+    async function loadCacheOnStart() {
+        try {
+            await initDB();
+            await loadDataFromCache(CACHE_KEY_PAGOS);
+            // Si la data de asignaciones se carga antes de los pagos, el cruce se disparará automáticamente.
+        } catch (e) {
+            // Manejado en initDB, no es necesario hacer más aquí.
+        }
+    }
+
+    // --- Funciones de Utilidad y Transformación (Igual que antes) ---
 
     function determineDelimiter(fileChunk) {
         if (fileChunk.includes('|')) return '|';
         if (fileChunk.includes(';')) return ';';
-        return ','; // Delimitador por defecto
+        return ',';
     }
 
     function parseFile(file, fastMode = false) {
@@ -171,7 +258,6 @@
         document.body.removeChild(link);
     }
     
-    // Función de parsing de fechas (igual que antes)
     const parseDate = (dateString) => {
         if (!dateString) return new Date(0); 
         let dateParts = dateString.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
@@ -187,7 +273,6 @@
         return new Date(0); 
     };
     
-    // Función de formateo de fechas (igual que antes)
     const formatDateToDDMMYYYY = (date) => {
         const d = new Date(date);
         const day = String(d.getDate()).padStart(2, '0');
@@ -196,10 +281,6 @@
         return `${day}/${month}/${year}`;
     };
 
-    /**
-     * FUNCIÓN CORREGIDA: Extrae el valor entero de la izquierda hasta el primer punto (.).
-     * Evita cualquier limpieza o validación adicional que pudiera causar errores.
-     */
     function getIntegerValue(value) {
         if (value === null || value === undefined) return 0;
         let strValue = String(value).trim();
@@ -207,69 +288,14 @@
         // 1. Buscar el índice del primer punto decimal
         const splitIndex = strValue.indexOf('.');
         
-        // 2. Extraer la parte entera
+        // 2. Extraer la parte entera: hasta el punto si existe, o toda la cadena
         let integerPart = (splitIndex !== -1) ? strValue.substring(0, splitIndex) : strValue;
         
         // 3. Limpiar cualquier caracter no numérico (excepto el signo) y convertir a entero.
-        // Esto maneja comas o puntos de miles que aún puedan existir.
         integerPart = integerPart.replace(/[^0-9-]/g, ''); 
         return parseInt(integerPart, 10) || 0;
     }
 
-    function populateSelectors(fields, selectors, presets = {}) {
-        selectors.forEach(select => {
-            select.innerHTML = '';
-            fields.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field;
-                option.textContent = field;
-                select.appendChild(option);
-            });
-            const presetValue = presets[select.id];
-            if (presetValue && fields.includes(presetValue)) {
-                select.value = presetValue;
-            }
-        });
-    }
-
-    function populateColumnSelectorsForMerge(fields1, fields2) {
-        const selectors1 = [col1Select, col3Select];
-        const selectors2 = [col2Select, col4Select];
-        
-        // 1. Archivo Principal (Asignaciones)
-        selectors1.forEach(select => {
-            const isKey1 = (select.id === 'col1Select');
-            select.innerHTML = '';
-            fields1.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field;
-                option.textContent = field;
-                select.appendChild(option);
-            });
-            if (isKey1 && fields1.includes(COL_DOC_PRIN)) {
-                select.value = COL_DOC_PRIN;
-            } else if (!isKey1 && fields1.includes(COL_MES_PRIN)) {
-                select.value = COL_MES_PRIN;
-            }
-        });
-
-        // 2. Archivo Secundario (Pagos)
-        selectors2.forEach(select => {
-            const isKey1 = (select.id === 'col2Select');
-            select.innerHTML = '';
-            fields2.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field;
-                option.textContent = field;
-                select.appendChild(option);
-            });
-            if (isKey1 && fields2.includes(COL_DOC_PAGOS)) {
-                select.value = COL_DOC_PAGOS;
-            } else if (!isKey1 && fields2.includes(COL_MES_PAGOS)) {
-                select.value = COL_MES_PAGOS;
-            }
-        });
-    }
 
     // --- Lógica del Cruce (Igual que antes) ---
 
@@ -278,17 +304,12 @@
             return;
         }
 
-        const key1_A = col1Select.value; 
-        const key1_B = col2Select.value; 
-        const key2_A = col3Select.value; 
-        const key2_B = col4Select.value; 
+        // Simplemente aseguramos que las columnas de Pagos (Secundario) sean las del resultado transformado
+        const key1_A = COL_DOC_PRIN;
+        const key1_B = COL_DOC_PAGOS;
+        const key2_A = COL_MES_PRIN;
+        const key2_B = COL_MES_PAGOS;
         
-        if (!key1_A || !key1_B || !key2_A || !key2_B) {
-            dedupeStatus.textContent = 'ERROR: No se pudo configurar el cruce. Faltan claves (Documento o Mes).';
-            dedupeStatus.className = 'alert alert-danger py-1';
-            return;
-        }
-
         dedupeStatus.textContent = '🚀 CRUCE DE DATOS AUTOMÁTICO EN CURSO... Por favor, espere.';
         dedupeStatus.className = 'alert alert-warning py-1';
         downloadMergeBtn.style.display = 'none'; 
@@ -312,7 +333,8 @@
                 }
             });
             
-            dataFilePagos = null; 
+            // Liberamos la memoria de la data de Pagos una vez el mapa está creado
+            // dataFilePagos = null; 
 
             // 2. Realizar el LEFT JOIN (data1 - Asignaciones)
             const mergedResults = [];
@@ -342,7 +364,7 @@
                 dedupeStatus.className = 'alert alert-danger py-1';
             }
             
-            processedDataAsignaciones = null;
+            processedDataAsignaciones = null; // Liberar memoria de Asignaciones
 
         }, 50); 
     }
@@ -355,14 +377,12 @@
         pagosProcessStatus.style.display = 'block';
 
         const allData = [];
-        let totalFilesProcessed = 0;
 
         for (const file of files) {
             if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) continue;
             try {
                 const results = await parseFile(file, true); 
                 allData.push(...results.data);
-                totalFilesProcessed++;
             } catch (e) {
                 console.error(`Error al parsear archivo ${file.name}:`, e);
             }
@@ -374,13 +394,12 @@
             return;
         }
 
-        pagosProcessStatus.textContent = `⚙️ Agrupando y transformando ${allData.length} filas (Sumando solo el valor entero)...`;
+        pagosProcessStatus.textContent = `⚙️ Agrupando y transformando ${allData.length} filas (Calculando Máx. y Suma Entera)...`;
         
         // 1. Agrupar, transformar y agregar
         const aggregatedMap = new Map();
 
         allData.forEach(row => {
-            // **USO DE LA FUNCIÓN SIMPLIFICADA**
             const valorPagadoEntero = getIntegerValue(row[COL_VALOR_PAGADO_RAW]);
             
             const docValue = String(row[COL_DOC_PAGOS] || '').trim();
@@ -403,17 +422,15 @@
                 });
             } else {
                 const data = aggregatedMap.get(groupKey);
-                // Fecha Máxima
                 if (fechaMov.getTime() > data[COL_FECHA_MOV].getTime()) {
                     data[COL_FECHA_MOV] = fechaMov;
                 }
-                // Suma de Valores (Sumando el entero)
                 data[COL_VALOR_PAGADO] += valorPagadoEntero;
             }
         });
         
-        // 2. Formato final y eliminación de columnas
-        dataFilePagos = Array.from(aggregatedMap.values()).map(data => {
+        // 2. Formato final y guardado en la variable global
+        const finalDataPagos = Array.from(aggregatedMap.values()).map(data => {
             return {
                 [COL_DOC_PAGOS]: data[COL_DOC_PAGOS],
                 [COL_MES_PAGOS]: data[COL_MES_PAGOS],
@@ -421,17 +438,20 @@
                 [COL_VALOR_PAGADO]: data[COL_VALOR_PAGADO],
             };
         });
+        
+        dataFilePagos = finalDataPagos;
 
-        pagosProcessStatus.textContent = `✅ **Proceso de Pagos Completado**. Filas: ${dataFilePagos.length}.`;
+        // **AÑADIR A CACHÉ**
+        await saveDataToCache(CACHE_KEY_PAGOS, dataFilePagos);
+
+
+        pagosProcessStatus.textContent = `✅ **Proceso de Pagos Completado**. Filas: ${dataFilePagos.length}. Data guardada en Caché.`;
         pagosProcessStatus.className = 'alert alert-success py-1';
         pagosStatus.textContent = `Consolidación de Pagos finalizada. Ahora, cargue la Carpeta de Asignaciones (Paso 2).`;
         pagosStatus.className = 'alert alert-success py-1';
 
         // Si la data de Asignaciones ya está lista, iniciar el cruce
         if (processedDataAsignaciones) {
-            const fields1 = Object.keys(processedDataAsignaciones[0]);
-            const fields2 = Object.keys(dataFilePagos[0]);
-            populateColumnSelectorsForMerge(fields1, fields2);
             executeMerge();
         }
     }
@@ -440,6 +460,14 @@
 
     function executeAsignacionesPreProcess() {
         if (!dataFileAsignaciones) return; 
+        
+        // Si no tenemos la data de Pagos (ni cacheada ni cargada), avisamos y paramos.
+        if (!dataFilePagos) {
+            dedupeStatus.textContent = `⚠️ ERROR: Cargue la Carpeta de Pagos (Paso 1) primero para actualizar el caché y continuar.`;
+            dedupeStatus.className = 'alert alert-danger py-1';
+            dedupeStatus.style.display = 'block';
+            return;
+        }
 
         dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de la data de Asignaciones...`;
         dedupeStatus.className = 'alert alert-warning py-1';
@@ -467,7 +495,7 @@
                 const groupKey = `${docValue}|${secAggValue}`;
                 
                 const minDateValue = parseDate(row[minDateCol]);
-                const maxDateValue = parseDate(row[maxColSelect.value]); // Usamos maxColSelect.value para mantener la consistencia
+                const maxDateValue = parseDate(row[maxDateCol]); 
                 if (isNaN(minDateValue.getTime()) || isNaN(maxDateValue.getTime())) return; 
                 
                 if (!aggregatedMap.has(groupKey)) {
@@ -514,16 +542,9 @@
             dedupeStatus.textContent = `✅ Limpieza de data de Asignaciones completada. Filas finales: ${finalRowCount}.`;
             dedupeStatus.className = 'alert alert-info py-1';
             
+            // Si la data de Pagos ya está cargada (sea desde caché o archivo)
             if (dataFilePagos) {
-                const fields1 = Object.keys(processedDataAsignaciones[0]);
-                const fields2 = Object.keys(dataFilePagos[0]);
-                populateColumnSelectorsForMerge(fields1, fields2);
                 executeMerge();
-            } else {
-                dedupeStatus.textContent = `✅ Limpieza de Asignaciones completada. Ahora, cargue la Carpeta de Pagos (Paso 1) para realizar el Cruce.`;
-                dedupeStatus.className = 'alert alert-info py-1';
-                anexoStatus.textContent = `Limpieza completada. Ya puede cargar la Carpeta de Pagos (Paso 1).`;
-                anexoStatus.className = 'alert alert-success py-1';
             }
 
         }, 50);
@@ -557,7 +578,6 @@
         anexoStatus.className = 'alert alert-warning py-1';
 
         const allData = [];
-        let headers = new Set();
         
         downloadMergeBtn.style.display = 'none';
 
@@ -590,7 +610,6 @@
                 });
                 
                 allData.push(...processedRows);
-                processedRows.forEach(row => Object.keys(row).forEach(header => headers.add(header)));
 
             } catch (e) {
                 console.error(`Error al parsear archivo ${file.name}:`, e);
