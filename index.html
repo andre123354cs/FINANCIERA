@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROCESOS YESBPO | Automatización de Datos con Caché</title>
+    <title>PROCESOS YESBPO | Automatización de Datos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -13,6 +13,25 @@
         .step-divider { border-top: 4px solid #0d6efd; margin-top: 30px; margin-bottom: 30px; padding-top: 15px; }
         h1 { color: #0d6efd; font-weight: 700; margin-bottom: 30px; }
         .section-title { font-size: 1.5rem; color: #495057; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
+        /* Estilos para los botones de navegación (Módulos) */
+        .module-nav button {
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border-radius: 0.5rem;
+            border: 2px solid #0d6efd;
+            background-color: #ffffff;
+            color: #0d6efd;
+        }
+        .module-nav button.active {
+            background-color: #0d6efd;
+            color: #ffffff;
+            box-shadow: 0 4px 8px rgba(13, 110, 253, 0.5);
+        }
+        .module-nav button:hover:not(.active) {
+            background-color: #e9f0ff;
+            color: #0b5ed7;
+        }
         /* Clases para ocultar elementos de configuración y filtros */
         .hidden-preview { display: none !important; }
         .hidden-filters select, .hidden-filters button { display: none !important; } 
@@ -24,24 +43,24 @@
 <div class="container">
     <h1 class="text-center">PROCESOS YESBPO</h1>
     
-    <ul class="nav nav-tabs mb-4" id="processTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="comfama-tab" data-bs-toggle="tab" data-bs-target="#comfama" type="button" role="tab" aria-controls="comfama" aria-selected="true">Comfama Financiera</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="azzorti-tab" data-bs-toggle="tab" data-bs-target="#azzorti" type="button" role="tab" aria-controls="azzorti" aria-selected="false">Azzorti</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="otra-tab" data-bs-toggle="tab" data-bs-target="#otra" type="button" role="tab" aria-controls="otra" aria-selected="false">Otro Módulo</button>
-        </li>
-    </ul>
+    <div class="d-flex flex-wrap justify-content-center gap-3 mb-4 module-nav" role="tablist">
+        <button class="btn px-4 py-2 active" id="comfama-tab" data-bs-toggle="tab" data-bs-target="#comfama" type="button" role="tab" aria-controls="comfama" aria-selected="true">
+            Comfama Financiera 🏦
+        </button>
+        <button class="btn px-4 py-2" id="azzorti-tab" data-bs-toggle="tab" data-bs-target="#azzorti" type="button" role="tab" aria-controls="azzorti" aria-selected="false">
+            Azzorti 👕
+        </button>
+        <button class="btn px-4 py-2" id="otra-tab" data-bs-toggle="tab" data-bs-target="#otra" type="button" role="tab" aria-controls="otra" aria-selected="false">
+            Otro Módulo ✨
+        </button>
+    </div>
 
     <div class="tab-content" id="processTabsContent">
         <div class="tab-pane fade show active" id="comfama" role="tabpanel" aria-labelledby="comfama-tab">
             <div class="alert alert-warning py-2 mb-4" id="cacheStatus" style="display:none;"></div>
 
             <div id="pagosSection" class="section-panel">
-                <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Transformación)</div>
+                <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Caché)</div>
                 
                 <p class="fw-bold">1.1 Carga de Carpeta de Pagos</p>
                 <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="pagosFolderInput">
@@ -59,7 +78,7 @@
             </div>
             
             <div class="section-panel step-divider">
-                <div class="section-title">2. Carpeta de Asignaciones (Proceso Automático)</div>
+                <div class="section-title">2. Carpeta de Asignaciones (Limpieza y Cruce Automático)</div>
                 
                 <p class="fw-bold">2.1 Carga de Carpeta de Asignaciones (Principal)</p>
                 <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput">
@@ -90,14 +109,22 @@
         </div>
 
         <div class="tab-pane fade" id="azzorti" role="tabpanel" aria-labelledby="azzorti-tab">
-            <div class="alert alert-info">
-                Módulo Azzorti en construcción. Aquí se implementarán sus procesos de automatización.
+            <div class="alert alert-secondary text-center py-4">
+                <h4>Azzorti (Módulo en Desarrollo)</h4>
+                <p>Aquí se implementarán los procesos de automatización específicos para Azzorti.</p>
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
             </div>
         </div>
 
         <div class="tab-pane fade" id="otra" role="tabpanel" aria-labelledby="otra-tab">
-            <div class="alert alert-info">
-                Módulo Adicional en construcción.
+            <div class="alert alert-secondary text-center py-4">
+                <h4>Otro Módulo (En Construcción)</h4>
+                <p>Este espacio está reservado para futuros procesos de automatización.</p>
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
             </div>
         </div>
     </div>
@@ -122,14 +149,14 @@
     const anexoStatus = document.getElementById('anexoStatus');
     const dedupeStatus = document.getElementById('dedupeStatus');
     const downloadMergeBtn = document.getElementById('downloadMergeBtn');
-    const cacheStatus = document.getElementById('cacheStatus'); // Lo mantenemos pero oculto
+    const cacheStatus = document.getElementById('cacheStatus');
     
-    // Elementos del nuevo Paso 1 (Pagos)
+    // Elementos del Paso 1 (Pagos)
     const pagosFolderInput = document.getElementById('pagosFolderInput');
     const pagosStatus = document.getElementById('pagosStatus');
     const pagosProcessStatus = document.getElementById('pagosProcessStatus');
     
-    // Nombres de Columnas
+    // Nombres de Columnas (CONSTANTES)
     const COL_DOC_PRIN = 'Numero Documento';
     const COL_MES_PRIN = 'Mes data';
     const COL_FECHA_PRIN = 'Nombre del archivo';
@@ -141,12 +168,13 @@
     const COL_VALOR_PAGADO_RAW = 'Valor Pagado'; 
     const COL_FECHA_MOV = 'Fecha Movimiento'; 
 
+    // ----------------------------------------------------------------------
     // --- Funciones de IndexedDB (CACHÉ) ---
+    // ----------------------------------------------------------------------
 
     function initDB() {
         return new Promise((resolve, reject) => {
             if (!window.indexedDB) {
-                // Si no hay soporte, solo logeamos el error (en consola) y resolvemos.
                 console.warn('IndexedDB no soportado. Caché deshabilitado.');
                 return resolve(null);
             }
@@ -173,19 +201,13 @@
     }
 
     function saveDataToCache(key, data) {
-        if (!db) return Promise.resolve(); // Operación silenciosa si DB no está lista
+        if (!db) return Promise.resolve();
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(['dataStore'], 'readwrite');
             const store = transaction.objectStore('dataStore');
             const dataToStore = { key: key, data: data, timestamp: new Date() };
-
             const request = store.put(dataToStore);
-
-            request.onsuccess = () => {
-                // MENSAJE DE CACHÉ ELIMINADO/SILENCIADO
-                resolve();
-            };
-
+            request.onsuccess = () => resolve();
             request.onerror = (event) => {
                 console.error('Error al guardar en caché.', event.target.error);
                 reject(event.target.error);
@@ -203,16 +225,11 @@
             request.onsuccess = () => {
                 const result = request.result;
                 if (result && result.data && result.data.length > 0) {
-                    const loadedData = result.data;
-                    dataFilePagos = loadedData;
-                    
-                    // MENSAJE DE CARGA DE CACHÉ SIMPLIFICADO Y MOVIDO
+                    dataFilePagos = result.data;
                     pagosStatus.textContent = `✅ Data de Pagos (Caché) cargada. Lista para usar.`;
                     pagosStatus.className = 'alert alert-success py-1';
-                    
-                    resolve(loadedData);
+                    resolve(dataFilePagos);
                 } else {
-                    // MENSAJE DE CACHÉ NO ENCONTRADO SIMPLIFICADO
                     pagosStatus.textContent = 'ℹ️ Data de Pagos no encontrada en caché. Cargue la Carpeta de Pagos (Paso 1).';
                     pagosStatus.className = 'alert alert-info py-1';
                     resolve(null);
@@ -227,18 +244,17 @@
     }
 
     async function loadCacheOnStart() {
-        // Inicializa DB de forma silenciosa
         try {
             await initDB();
-            // Intenta cargar la data de Pagos
             await loadDataFromCache(CACHE_KEY_PAGOS);
-            
         } catch (e) {
             console.error('Fallo grave al inicializar la base de datos de caché.', e);
         }
     }
 
-    // --- Funciones de Utilidad y Transformación (Igual que antes) ---
+    // ----------------------------------------------------------------------
+    // --- Funciones de Utilidad y Conversión ---
+    // ----------------------------------------------------------------------
 
     function determineDelimiter(fileChunk) {
         if (fileChunk.includes('|')) return '|';
@@ -289,13 +305,11 @@
         if (!dateString) return new Date(0); 
         let dateParts = dateString.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
         if (dateParts) {
-            // Asume DD/MM/YYYY o DD-MM-YYYY
             const d = new Date(parseInt(dateParts[3]), parseInt(dateParts[2]) - 1, parseInt(dateParts[1]));
             if (!isNaN(d.getTime())) return d;
         } 
         dateParts = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
            if (dateParts) {
-            // Asume YYYY-MM-DD
             const d = new Date(parseInt(dateParts[1]), parseInt(dateParts[2]) - 1, parseInt(dateParts[3]));
             if (!isNaN(d.getTime())) return d;
         } 
@@ -313,17 +327,16 @@
     function getIntegerValue(value) {
         if (value === null || value === undefined) return 0;
         let strValue = String(value).trim();
-        
         const splitIndex = strValue.indexOf('.');
-        
         let integerPart = (splitIndex !== -1) ? strValue.substring(0, splitIndex) : strValue;
-        
         integerPart = integerPart.replace(/[^0-9-]/g, ''); 
         return parseInt(integerPart, 10) || 0;
     }
 
 
-    // --- Lógica del Cruce (Igual que antes) ---
+    // ----------------------------------------------------------------------
+    // --- Lógica del Cruce y Procesamiento de Pagos ---
+    // ----------------------------------------------------------------------
 
     function executeMerge() {
         if (!processedDataAsignaciones || !dataFilePagos) {
@@ -390,8 +403,6 @@
         }, 50); 
     }
 
-    // --- Lógica del Procesamiento de Pagos (Paso 1) ---
-
     async function executePagosProcess(files) {
         pagosProcessStatus.textContent = `⚙️ Consolidando ${files.length} archivos de Pagos...`;
         pagosProcessStatus.className = 'alert alert-warning py-1';
@@ -421,7 +432,6 @@
 
         allData.forEach(row => {
             const valorPagadoEntero = getIntegerValue(row[COL_VALOR_PAGADO_RAW]);
-            
             const docValue = String(row[COL_DOC_PAGOS] || '').trim();
             const fechaMovStr = String(row[COL_FECHA_MOV] || '').trim();
             
@@ -460,23 +470,22 @@
         
         dataFilePagos = finalDataPagos;
 
-        // Guardado en Caché silencioso
         await saveDataToCache(CACHE_KEY_PAGOS, dataFilePagos);
 
 
-        // MENSAJE FINAL SIMPLIFICADO
         pagosProcessStatus.textContent = `✅ Consolidación y Transformación de Pagos Completada.`;
         pagosProcessStatus.className = 'alert alert-success py-1';
         pagosStatus.textContent = `Data de Pagos lista. Ahora, cargue la Carpeta de Asignaciones (Paso 2).`;
         pagosStatus.className = 'alert alert-success py-1';
 
-        // Si la data de Asignaciones ya está lista, iniciar el cruce
         if (processedDataAsignaciones) {
             executeMerge();
         }
     }
 
-    // --- Lógica del Procesamiento de Asignaciones (Paso 2) (Modificación de Estado Real) ---
+    // ----------------------------------------------------------------------
+    // --- Lógica del Procesamiento de Asignaciones (CORRECCIÓN DE HOY) ---
+    // ----------------------------------------------------------------------
 
     function executeAsignacionesPreProcess() {
         if (!dataFileAsignaciones) return; 
@@ -499,12 +508,11 @@
             const minDateCol = COL_FECHA_PRIN; 
             const maxDateCol = COL_FECHA_PRIN; 
             
-            // --- MODIFICACIÓN CLAVE: OBTENER FECHA DE HOY FORMATEADA ---
+            // OBTENER FECHA DE HOY FORMATEADA
             const today = new Date();
             today.setHours(0, 0, 0, 0); 
-            const formattedToday = formatDateToDDMMYYYY(today);
-            // -----------------------------------------------------------
-
+            const formattedToday = formatDateToDDMMYYYY(today); // <- Usamos 'hoy'
+            
             const aggregatedMap = new Map();
             
             // --- AGRUPACIÓN Y AGREGACIÓN ---
@@ -537,9 +545,8 @@
                 finalRow['Ingreso'] = formatDateToDDMMYYYY(data.minDate);
                 finalRow['Salida'] = salidaDateStr;
                 
-                // --- MODIFICACIÓN CLAVE: COMPARAR CON HOY ---
+                // LÓGICA CORREGIDA: ACTIVO si la Salida es IGUAL A HOY
                 finalRow['Estado Real'] = (salidaDateStr === formattedToday) ? 'ACTIVO' : 'INACTIVO';
-                // ---------------------------------------------
                 
                 finalData.push(finalRow);
             }
@@ -573,9 +580,10 @@
         }, 50);
     }
     
-    // --- EVENTOS DE CARGA (Sin cambios) ---
+    // ----------------------------------------------------------------------
+    // --- EVENTOS DE CARGA (Sin cambios funcionales) ---
+    // ----------------------------------------------------------------------
 
-    // Evento 1: Carga de Carpeta de Pagos (Paso 1)
     pagosFolderInput.addEventListener('change', async (event) => {
         const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
         if (files.length === 0) {
@@ -588,7 +596,6 @@
         downloadMergeBtn.style.display = 'none'; 
     });
 
-    // Evento 2: Carga de Carpeta de Asignaciones (Paso 2)
     folderInput.addEventListener('change', async (event) => {
         const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
         if (files.length === 0) {
