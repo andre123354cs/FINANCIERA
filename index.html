@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comfama Financiera - YesBPO | Automatización Total (Secundario Primero)</title>
+    <title>Comfama Financiera - YesBPO | Automatización de Datos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        body { background-color: #f4f7f6; }
-        .container { max-width: 1400px; margin-top: 20px; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        body { background-color: #f4f7f6; display: flex; flex-direction: column; min-height: 100vh; }
+        .container { max-width: 1400px; margin-top: 20px; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); flex-grow: 1; }
         .section-panel { padding: 15px; border: 1px solid #e0e0e0; border-radius: 0.25rem; margin-bottom: 20px; }
         .step-divider { border-top: 4px solid #0d6efd; margin-top: 30px; margin-bottom: 30px; padding-top: 15px; }
         h1 { color: #0d6efd; font-weight: 700; margin-bottom: 30px; }
@@ -16,19 +16,20 @@
         /* Clases para ocultar elementos de configuración y filtros */
         .hidden-preview { display: none !important; }
         .hidden-filters select, .hidden-filters button { display: none !important; } 
+        .footer { padding: 15px 0; background-color: #e9ecef; color: #6c757d; text-align: center; margin-top: 20px; font-size: 0.85rem; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1 class="text-center">Comfama Financiera - YesBPO | Automatización Total de Datos 🚀</h1>
+    <h1 class="text-center">Comfama Financiera - YesBPO | Automatización</h1>
 
     <div id="cruceSection" class="section-panel">
-        <div class="section-title text-success">1. Archivo Secundario (Carga Primero)</div>
+        <div class="section-title text-success">1. Archivo de Pagos</div>
         
-        <p class="fw-bold">1.1 Carga de Archivo Secundario</p>
+        <p class="fw-bold">1.1 Carga de Archivo de Pagos (Secundario)</p>
         <input type="file" class="form-control mb-3" id="file2Input" accept=".csv,.txt" required>
-        <div class="alert alert-info py-1" id="file2Status">Cargue el archivo secundario (referencia) para continuar.</div>
+        <div class="alert alert-info py-1" id="file2Status">Cargue el **Archivo de Pagos** (referencia) para continuar.</div>
         
         <div class="hidden-filters">
             <select id="col1Select" class="form-select"></select>
@@ -41,11 +42,11 @@
     </div>
     
     <div class="section-panel step-divider">
-        <div class="section-title">2. Archivo Principal: Consolidación y Limpieza (Automático)</div>
+        <div class="section-title">2. Carpeta de Asignaciones (Proceso Automático)</div>
         
-        <p class="fw-bold">2.1 Carga de Carpeta Principal</p>
+        <p class="fw-bold">2.1 Carga de Carpeta de Asignaciones (Principal)</p>
         <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput">
-        <div class="alert alert-info py-1" id="anexoStatus">Cargue la carpeta con los archivos principales (consolidados).</div>
+        <div class="alert alert-info py-1" id="anexoStatus">Cargue la **Carpeta de Asignaciones** (consolidados) para iniciar el proceso.</div>
         
         <p class="fw-bold mt-4">2.2 Proceso Automático (Limpieza y Cruce)</p>
         
@@ -62,28 +63,27 @@
         </div>
         
         <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4">
-            <button class="btn btn-primary btn-lg" onclick="downloadFile(processedData, 'consolidado_procesado.csv', '|');" id="downloadAnexoBtn" style="display:none;">
-                Descargar Archivo Principal Limpio
+            <button class="btn btn-primary btn-lg" onclick="downloadFile(mergedData, 'resultado_cruce_final.csv', '|');" id="downloadMergeBtn" style="display:none;">
+                Descargar Data
             </button>
-            <button class="btn btn-danger btn-lg" onclick="downloadFile(mergedData, 'resultado_cruce_final.csv', '|');" id="downloadMergeBtn" style="display:none;">
-                Descargar Resultado Final del Cruce
-            </button>
+            <button id="downloadAnexoBtn" style="display:none;"></button>
         </div>
         
     </div>
-    
-    <div id="pivotSection" class="hidden-preview"></div>
-
 </div>
+
+<footer class="footer">
+    Autoría: Andrés Vanegas - Área de Inteligencia YesBPO
+</footer>
 
 <script>
     // Variables globales
     let consolidatedData = null; 
-    let processedData = null;    // Archivo Principal (Resultado del Paso 1)
-    let dataFile2 = null;        // Archivo Secundario (Cargado en el Paso 1 visual)
-    let mergedData = null;       // Resultado del Cruce (Paso 2)
+    let processedData = null;    
+    let dataFile2 = null;        
+    let mergedData = null;       
 
-    // Elementos del DOM
+    // Elementos del DOM (Simplificados, se mantienen para la lógica)
     const folderInput = document.getElementById('folderInput');
     const anexoStatus = document.getElementById('anexoStatus');
     const downloadAnexoBtn = document.getElementById('downloadAnexoBtn');
@@ -188,7 +188,7 @@
         const selectors1 = [col1Select, col3Select];
         const selectors2 = [col2Select, col4Select];
         
-        // 1. Archivo Principal (data1)
+        // Archivo Principal (data1)
         selectors1.forEach(select => {
             const isKey1 = (select.id === 'col1Select');
             select.innerHTML = '';
@@ -205,7 +205,7 @@
             }
         });
 
-        // 2. Archivo Secundario (data2)
+        // Archivo Secundario (data2)
         selectors2.forEach(select => {
             const isKey1 = (select.id === 'col2Select');
             select.innerHTML = '';
@@ -227,12 +227,8 @@
 
     // --- FUNCIÓN DE CRUCE (Se llama al final) ---
     function executeMerge() {
-        if (!processedData || !dataFile2) {
-            // Esto no debería pasar si se llama correctamente
-            return;
-        }
+        if (!processedData || !dataFile2) return; 
 
-        // Obtener la configuración de las columnas clave (automáticamente asignadas)
         const key1_A = col1Select.value; 
         const key1_B = col2Select.value; 
         const key2_A = col3Select.value; 
@@ -253,7 +249,6 @@
             
             const data1 = processedData;
             const data2 = dataFile2.data;
-            // Headers del archivo secundario que NO son la clave de cruce
             const headers2 = dataFile2.meta.fields.filter(h => h !== key1_B && (!useKey2 || h !== key2_B));
 
             // 1. Crear el mapa de búsqueda (data2)
@@ -296,7 +291,7 @@
             mergedData = mergedResults;
             
             if (mergedData.length > 0) {
-                dedupeStatus.textContent = `✅ **PROCESO FINALIZADO**. El resultado tiene **${mergedData.length}** filas. Descargue los archivos.`;
+                dedupeStatus.textContent = `✅ **PROCESO FINALIZADO**. Data lista para descargar.`;
                 dedupeStatus.className = 'alert alert-success py-1';
                 downloadMergeBtn.style.display = 'block'; 
             } else {
@@ -314,11 +309,9 @@
     function executePreProcess() {
         if (!consolidatedData) return; 
 
-        // 1. Mostrar estado de procesamiento
         dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de la data principal...`;
         dedupeStatus.className = 'alert alert-warning py-1';
         dedupeStatus.style.display = 'block';
-        downloadAnexoBtn.style.display = 'none';
         downloadMergeBtn.style.display = 'none';
 
         setTimeout(() => {
@@ -340,7 +333,7 @@
             const formattedYesterday = formatDateToDDMMYYYY(yesterday);
             const aggregatedMap = new Map();
             
-            // --- AGRUPACIÓN Y AGREGACIÓN ---
+            // Lógica de Agregación y Limpieza... (igual que en versiones anteriores)
             consolidatedData.forEach(row => {
                 const docValue = String(row[docCol] || '').trim();
                 const secAggValue = String(row[secAggCol] || '').trim(); 
@@ -373,7 +366,7 @@
                 finalData.push(finalRow);
             }
             
-            // --- DEDUPLICACIÓN FINAL ---
+            // Lógica de Deduplicación... (igual que en versiones anteriores)
             const dupCols = [docCol, secAggCol, dupCol1Select.value, dupCol2Select.value, dupCol3Select.value].filter(v => v);
             let deduplicatedData = [];
             const seenKeys = new Set();
@@ -395,22 +388,20 @@
             
             // Actualizar UI
             dedupeStatus.textContent = `✅ Limpieza de data principal completada. Filas finales: ${finalRowCount}.`;
-            dedupeStatus.className = 'alert alert-success py-1';
-            downloadAnexoBtn.style.display = 'block';
+            dedupeStatus.className = 'alert alert-info py-1';
             
-            // Preparar selectores para el Paso 2
-            if (processedData.length > 0) {
+            // Si el archivo secundario ya está cargado, ¡ejecutar el cruce de inmediato!
+            if (dataFile2) {
                 const consolidatedHeaders = Object.keys(processedData[0]);
-                
-                // Si el archivo secundario ya está cargado, ¡ejecutar el cruce de inmediato!
-                if (dataFile2) {
-                    const fields2 = dataFile2.meta.fields;
-                    populateColumnSelectorsForMerge(consolidatedHeaders, fields2);
-                    executeMerge();
-                } else {
-                    // Si no, solo actualizamos el selector por si se carga después
-                    populateColumnSelectorsForMerge(consolidatedHeaders, []);
-                }
+                const fields2 = dataFile2.meta.fields;
+                populateColumnSelectorsForMerge(consolidatedHeaders, fields2);
+                executeMerge();
+            } else {
+                // Si no, pedimos el Archivo de Pagos
+                dedupeStatus.textContent = `✅ Limpieza de data principal completada. Ahora, cargue el Archivo de Pagos para realizar el Cruce.`;
+                dedupeStatus.className = 'alert alert-info py-1';
+                anexoStatus.textContent = `Limpieza completada. Ya puede cargar el Archivo de Pagos (Paso 1).`;
+                anexoStatus.className = 'alert alert-success py-1';
             }
 
         }, 50);
@@ -418,7 +409,7 @@
     
     // --- EVENTOS DE CARGA (Orden Invertido) ---
 
-    // Evento 1: Carga de Archivo Secundario
+    // Evento 1: Carga de Archivo de Pagos (Secundario)
     file2Input.addEventListener('change', async (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -430,7 +421,6 @@
             const headers2 = data.meta.fields;
             let rawData2 = data.data;
             
-            // Transformación a string para las claves de cruce
             if (rawData2.length > 0) {
                 const transformedData2 = rawData2.map(row => {
                     const newRow = { ...row };
@@ -443,14 +433,18 @@
                 dataFile2 = data;
             }
             
-            file2Status.textContent = `✅ Archivo secundario cargado y listo. Fila: ${dataFile2.data.length}. Ahora cargue la carpeta principal.`;
+            file2Status.textContent = `✅ Archivo de Pagos cargado y listo. Filas: ${dataFile2.data.length}.`;
             file2Status.className = 'alert alert-success py-1';
             
-            // Si el Archivo Principal ya está procesado (se cargó antes por error), ejecutar el cruce
+            // Si el Consolidado Principal ya está procesado, ejecutar el cruce
             if (processedData) {
                 const fields1 = Object.keys(processedData[0]);
                 populateColumnSelectorsForMerge(fields1, headers2);
                 executeMerge();
+            } else {
+                // Si no, pedir la carpeta de Asignaciones
+                anexoStatus.textContent = `Archivo de Pagos listo. Ahora cargue la Carpeta de Asignaciones (Paso 2).`;
+                anexoStatus.className = 'alert alert-info py-1';
             }
             
         } catch (error) {
@@ -460,7 +454,7 @@
         }
     });
 
-    // Evento 2: Carga de Carpeta Principal
+    // Evento 2: Carga de Carpeta de Asignaciones (Principal)
     folderInput.addEventListener('change', async (event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -480,6 +474,7 @@
             try {
                 const results = await parseFile(file, true); 
                 
+                // Lógica de extracción de fechas del nombre del archivo (igual que antes)
                 const match = file.name.match(/(\d{2}[-.]\d{2}[-.]\d{4})/); 
                 let formattedDate = '01/01/1900'; 
                 let month = '01';
@@ -488,7 +483,6 @@
                 if (match) {
                     const dateStr = match[0];
                     const parts = dateStr.match(/(\d{2})[-.](\d{2})[-.](\d{4})/);
-                    
                     if (parts && parts.length === 4) {
                         formattedDate = `${parts[1]}/${parts[2]}/${parts[3]}`; 
                         month = parts[2];
@@ -516,7 +510,7 @@
         
         if (allData.length > 0) {
             consolidatedData = allData; 
-            anexoStatus.textContent = `¡Consolidación de archivos exitosa! ${fileCount} archivos cargados. Iniciando limpieza...`;
+            anexoStatus.textContent = `¡Consolidación de ${fileCount} archivos lista! Iniciando limpieza automática...`;
             anexoStatus.className = 'alert alert-info py-1';
             
             // Configurar Selectores Ocultos
@@ -535,7 +529,6 @@
         } else {
             anexoStatus.textContent = 'No se encontraron archivos CSV/TXT válidos.';
             anexoStatus.className = 'alert alert-danger py-1';
-            downloadAnexoBtn.style.display = 'none';
         }
     });
 
