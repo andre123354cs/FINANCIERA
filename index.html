@@ -84,7 +84,7 @@
     let processedDataAsignaciones = null; // Resultado de la limpieza del Paso 2
     let mergedData = null;       
 
-    // Elementos del DOM
+    // Elementos del DOM (Simplificados, se mantienen para la lógica)
     const folderInput = document.getElementById('folderInput');
     const anexoStatus = document.getElementById('anexoStatus');
     const dedupeStatus = document.getElementById('dedupeStatus');
@@ -120,7 +120,8 @@
     const COL_MES_PAGOS = 'MES';
     const COL_FECHA_MAX_PAGOS = 'Fecha_Movimiento_Maxima';
     const COL_VALOR_PAGADO = 'Suma_Valor_Pagado';
-    // Columna a procesar en Pagos
+    // Columnas a procesar en Pagos
+    const COL_VALOR_PAGADO_RAW = 'Valor Pagado'; // Nombre original
     const COL_FECHA_MOV = 'Fecha Movimiento'; 
 
     // --- Funciones de Utilidad y Transformación ---
@@ -148,7 +149,7 @@
                 });
             };
             reader.onerror = (error) => reject(error);
-            reader.readAsText(file.slice(0, 1024 * 10), 'UTF-8'); // Leer los primeros 10KB para identificar el delimitador
+            reader.readAsText(file.slice(0, 1024 * 10), 'UTF-8'); 
         });
     }
 
@@ -170,23 +171,23 @@
         document.body.removeChild(link);
     }
     
+    // Función de parsing de fechas (igual que antes)
     const parseDate = (dateString) => {
         if (!dateString) return new Date(0); 
         let dateParts = dateString.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
         if (dateParts) {
-            // Asume DD/MM/YYYY o DD.MM.YYYY
             const d = new Date(parseInt(dateParts[3]), parseInt(dateParts[2]) - 1, parseInt(dateParts[1]));
             if (!isNaN(d.getTime())) return d;
         } 
         dateParts = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
          if (dateParts) {
-            // Asume YYYY-MM-DD
             const d = new Date(parseInt(dateParts[1]), parseInt(dateParts[2]) - 1, parseInt(dateParts[3]));
             if (!isNaN(d.getTime())) return d;
         } 
         return new Date(0); 
     };
     
+    // Función de formateo de fechas (igual que antes)
     const formatDateToDDMMYYYY = (date) => {
         const d = new Date(date);
         const day = String(d.getDate()).padStart(2, '0');
@@ -194,6 +195,52 @@
         const year = d.getFullYear();
         return `${day}/${month}/${year}`;
     };
+
+    // Función modificada para obtener el valor entero de Valor Pagado
+    function getIntegerValue(value) {
+        if (value === null || value === undefined) return 0;
+        let strValue = String(value).trim();
+        
+        // 1. Limpiar separadores de miles
+        // NOTA: Asumimos que el separador decimal es el que ocurre primero (o es un punto/coma)
+        
+        // Si hay una coma y un punto, asumimos que uno es de miles y otro decimal. Intentamos priorizar el punto/coma como decimal.
+        
+        // Eliminar puntos/comas que no sean decimales (asumiendo formato E.MMM,DD o E,MMM.DD)
+        if (strValue.includes('.') && strValue.includes(',')) {
+            // Caso típico: 1.234,56 (coma decimal) o 1,234.56 (punto decimal)
+            // Simplificamos: eliminamos el que aparece primero, o el punto si la coma es el último separador.
+            if (strValue.lastIndexOf(',') > strValue.lastIndexOf('.')) {
+                 strValue = strValue.replace(/\./g, ''); // Eliminar puntos (separador de miles)
+            } else {
+                 strValue = strValue.replace(/,/g, ''); // Eliminar comas (separador de miles)
+            }
+        }
+        
+        // 2. Encontrar el separador decimal final (punto o coma)
+        const decimalIndexComma = strValue.indexOf(',');
+        const decimalIndexDot = strValue.indexOf('.');
+        
+        let splitIndex = -1;
+        if (decimalIndexComma !== -1 && decimalIndexDot !== -1) {
+             // Si ambos existen, tomamos el que aparezca primero como separador decimal
+            splitIndex = Math.min(decimalIndexComma, decimalIndexDot);
+        } else if (decimalIndexComma !== -1) {
+            splitIndex = decimalIndexComma;
+        } else if (decimalIndexDot !== -1) {
+            splitIndex = decimalIndexDot;
+        }
+        
+        let integerPart = strValue;
+        if (splitIndex !== -1) {
+            // Extraer solo la parte entera
+            integerPart = strValue.substring(0, splitIndex);
+        }
+        
+        // 3. Limpiar cualquier separador restante y parsear a entero
+        integerPart = integerPart.replace(/[^0-9-]/g, ''); // Eliminar cualquier caracter no numérico (excepto el signo)
+        return parseInt(integerPart, 10) || 0;
+    }
 
     function populateSelectors(fields, selectors, presets = {}) {
         selectors.forEach(select => {
@@ -242,7 +289,6 @@
                 option.textContent = field;
                 select.appendChild(option);
             });
-            // Automáticamente seleccionamos las columnas transformadas de Pagos
             if (isKey1 && fields2.includes(COL_DOC_PAGOS)) {
                 select.value = COL_DOC_PAGOS;
             } else if (!isKey1 && fields2.includes(COL_MES_PAGOS)) {
@@ -251,17 +297,17 @@
         });
     }
 
-    // --- Lógica del Cruce ---
+    // --- Lógica del Cruce (Igual que antes) ---
 
     function executeMerge() {
         if (!processedDataAsignaciones || !dataFilePagos) {
             return;
         }
 
-        const key1_A = col1Select.value; // Numero Documento Asignaciones
-        const key1_B = col2Select.value; // Numero de Documento Pagos
-        const key2_A = col3Select.value; // Mes data Asignaciones
-        const key2_B = col4Select.value; // MES Pagos
+        const key1_A = col1Select.value; 
+        const key1_B = col2Select.value; 
+        const key2_A = col3Select.value; 
+        const key2_B = col4Select.value; 
         
         if (!key1_A || !key1_B || !key2_A || !key2_B) {
             dedupeStatus.textContent = 'ERROR: No se pudo configurar el cruce. Faltan claves (Documento o Mes).';
@@ -278,19 +324,16 @@
             const data1 = processedDataAsignaciones;
             const data2 = dataFilePagos;
             
-            // Los headers de Pagos son las 4 columnas transformadas
             const headers2 = [COL_FECHA_MAX_PAGOS, COL_VALOR_PAGADO];
 
             // 1. Crear el mapa de búsqueda (data2 - Pagos)
             const map2 = new Map();
             data2.forEach(row => {
-                // Clave compuesta: Documento|MES
                 const keyValue = `${String(row[key1_B] || '').trim()}|${String(row[key2_B] || '').trim()}`;
                 
                 if (keyValue) {
                     const rowData = {};
                     headers2.forEach(field => rowData[field] = row[field]);
-                    // En Pagos ya está agrupado, solo debería haber una fila por clave
                     map2.set(keyValue, rowData);
                 }
             });
@@ -301,7 +344,6 @@
             const mergedResults = [];
             
             data1.forEach(row1 => {
-                // Clave de búsqueda: Documento|Mes data
                 const searchKey = `${String(row1[key1_A] || '').trim()}|${String(row1[key2_A] || '').trim()}`;
 
                 const row2Data = map2.get(searchKey) || {};
@@ -310,7 +352,6 @@
                 let isMatch = Object.keys(row2Data).length > 0;
                 
                 for (const field of headers2) {
-                    // Agregamos las columnas Fecha_Movimiento_Maxima y Suma_Valor_Pagado
                     newRow[field] = isMatch ? row2Data[field] : ''; 
                 }
                 mergedResults.push(newRow);
@@ -327,7 +368,6 @@
                 dedupeStatus.className = 'alert alert-danger py-1';
             }
             
-            // Liberar memoria
             processedDataAsignaciones = null;
 
         }, 50); 
@@ -360,16 +400,17 @@
             return;
         }
 
-        pagosProcessStatus.textContent = `⚙️ Agrupando y transformando ${allData.length} filas...`;
+        pagosProcessStatus.textContent = `⚙️ Agrupando y transformando ${allData.length} filas (Sumando solo el valor entero)...`;
         
         // 1. Agrupar, transformar y agregar
         const aggregatedMap = new Map();
 
         allData.forEach(row => {
-            // Transformación: Crear MES y Normalizar Valor_Pagado y Doc
+            // **MODIFICACIÓN CLAVE AQUÍ:** Usamos la nueva función getIntegerValue
+            const valorPagadoEntero = getIntegerValue(row[COL_VALOR_PAGADO_RAW]);
+            
             const docValue = String(row[COL_DOC_PAGOS] || '').trim();
             const fechaMovStr = String(row[COL_FECHA_MOV] || '').trim();
-            let valorPagado = parseFloat(String(row[COL_VALOR_PAGADO] || '0').replace(/\./g, '').replace(/,/g, '.')) || 0;
             
             if (!docValue || !fechaMovStr) return; 
 
@@ -383,8 +424,8 @@
                 aggregatedMap.set(groupKey, {
                     [COL_DOC_PAGOS]: docValue,
                     [COL_MES_PAGOS]: mes,
-                    [COL_FECHA_MOV]: fechaMov, // Usamos la fecha real (Date object) para el cálculo del Max
-                    [COL_VALOR_PAGADO]: valorPagado,
+                    [COL_FECHA_MOV]: fechaMov, 
+                    [COL_VALOR_PAGADO]: valorPagadoEntero, // INICIALIZACIÓN con el entero
                 });
             } else {
                 const data = aggregatedMap.get(groupKey);
@@ -392,8 +433,8 @@
                 if (fechaMov.getTime() > data[COL_FECHA_MOV].getTime()) {
                     data[COL_FECHA_MOV] = fechaMov;
                 }
-                // Suma de Valores
-                data[COL_VALOR_PAGADO] += valorPagado;
+                // Suma de Valores (Sumando el entero)
+                data[COL_VALOR_PAGADO] += valorPagadoEntero;
             }
         });
         
@@ -402,7 +443,7 @@
             return {
                 [COL_DOC_PAGOS]: data[COL_DOC_PAGOS],
                 [COL_MES_PAGOS]: data[COL_MES_PAGOS],
-                [COL_FECHA_MAX_PAGOS]: formatDateToDDMMYYYY(data[COL_FECHA_MOV]), // Formatear la fecha máxima
+                [COL_FECHA_MAX_PAGOS]: formatDateToDDMMYYYY(data[COL_FECHA_MOV]), 
                 [COL_VALOR_PAGADO]: data[COL_VALOR_PAGADO],
             };
         });
@@ -421,7 +462,7 @@
         }
     }
 
-    // --- Lógica del Procesamiento de Asignaciones (Paso 2) ---
+    // --- Lógica del Procesamiento de Asignaciones (Paso 2) (Igual que antes) ---
 
     function executeAsignacionesPreProcess() {
         if (!dataFileAsignaciones) return; 
@@ -432,7 +473,6 @@
         downloadMergeBtn.style.display = 'none';
 
         setTimeout(() => {
-            // La configuración se asume de la versión anterior
             const docCol = COL_DOC_PRIN;
             const secAggCol = COL_MES_PRIN; 
             const minDateCol = COL_FECHA_PRIN; 
@@ -445,7 +485,7 @@
             const formattedYesterday = formatDateToDDMMYYYY(yesterday);
             const aggregatedMap = new Map();
             
-            // --- AGRUPACIÓN Y AGREGACIÓN ---
+            // Lógica de Agregación y Limpieza... (igual que en versiones anteriores)
             dataFileAsignaciones.forEach(row => {
                 const docValue = String(row[docCol] || '').trim();
                 const secAggValue = String(row[secAggCol] || '').trim(); 
@@ -478,7 +518,6 @@
                 finalData.push(finalRow);
             }
             
-            // Lógica de Deduplicación (Se usa la lógica de la versión anterior)
             const dupCols = [docCol, secAggCol, COL_ANIO_PRIN].filter(v => v);
             let deduplicatedData = [];
             const seenKeys = new Set();
@@ -498,11 +537,9 @@
             const finalRowCount = processedDataAsignaciones.length;
             dataFileAsignaciones = null; 
             
-            // Actualizar UI
             dedupeStatus.textContent = `✅ Limpieza de data de Asignaciones completada. Filas finales: ${finalRowCount}.`;
             dedupeStatus.className = 'alert alert-info py-1';
             
-            // Si el archivo de Pagos ya está procesado, ¡ejecutar el cruce de inmediato!
             if (dataFilePagos) {
                 const fields1 = Object.keys(processedDataAsignaciones[0]);
                 const fields2 = Object.keys(dataFilePagos[0]);
@@ -528,9 +565,9 @@
             pagosStatus.className = 'alert alert-danger py-1';
             return;
         }
-        dataFilePagos = null; // Resetear
+        dataFilePagos = null; 
         executePagosProcess(files);
-        downloadMergeBtn.style.display = 'none'; // Ocultar mientras procesa
+        downloadMergeBtn.style.display = 'none'; 
     });
 
     // Evento 2: Carga de Carpeta de Asignaciones (Paso 2)
@@ -554,7 +591,6 @@
             try {
                 const results = await parseFile(file, true); 
                 
-                // Lógica de metadatos (igual que antes)
                 const match = file.name.match(/(\d{2}[-.]\d{2}[-.]\d{4})/); 
                 let formattedDate = '01/01/1900'; 
                 let month = '01';
@@ -592,7 +628,6 @@
             anexoStatus.textContent = `¡Consolidación de Asignaciones lista! Iniciando limpieza automática...`;
             anexoStatus.className = 'alert alert-info py-1';
             
-            // Ejecutar la limpieza y luego el cruce si Pagos está listo
             executeAsignacionesPreProcess();
 
         } else {
