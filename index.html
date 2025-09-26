@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comfama Financiera - YesBPO | Automatización de Datos con Caché</title>
+    <title>PROCESOS YESBPO | Automatización de Datos con Caché</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -22,56 +22,84 @@
 <body onload="loadCacheOnStart()">
 
 <div class="container">
-    <h1 class="text-center">Comfama Financiera - YesBPO | Automatización</h1>
+    <h1 class="text-center">PROCESOS YESBPO</h1>
     
-    <div class="alert alert-warning py-2 mb-4" id="cacheStatus" style="display:none;"></div>
+    <ul class="nav nav-tabs mb-4" id="processTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="comfama-tab" data-bs-toggle="tab" data-bs-target="#comfama" type="button" role="tab" aria-controls="comfama" aria-selected="true">Comfama Financiera</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="azzorti-tab" data-bs-toggle="tab" data-bs-target="#azzorti" type="button" role="tab" aria-controls="azzorti" aria-selected="false">Azzorti</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="otra-tab" data-bs-toggle="tab" data-bs-target="#otra" type="button" role="tab" aria-controls="otra" aria-selected="false">Otro Módulo</button>
+        </li>
+    </ul>
 
-    <div id="pagosSection" class="section-panel">
-        <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Transformación)</div>
-        
-        <p class="fw-bold">1.1 Carga de Carpeta de Pagos</p>
-        <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="pagosFolderInput">
-        <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** (si desea actualizar la data) o cargue directamente el Paso 2.</div>
-        
-        <div class="alert alert-light mt-2 py-1" id="pagosProcessStatus" style="display:none;"></div>
-        
-        <div class="hidden-filters">
-            <select id="col1Select" class="form-select"></select>
-            <select id="col2Select" class="form-select"></select>
-            <select id="col3Select" class="form-select"></select>
-            <select id="col4Select" class="form-select"></select>
-            <button id="executeMerge">REALIZAR CRUCE DE DATOS (LEFT JOIN)</button>
+    <div class="tab-content" id="processTabsContent">
+        <div class="tab-pane fade show active" id="comfama" role="tabpanel" aria-labelledby="comfama-tab">
+            <div class="alert alert-warning py-2 mb-4" id="cacheStatus" style="display:none;"></div>
+
+            <div id="pagosSection" class="section-panel">
+                <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Transformación)</div>
+                
+                <p class="fw-bold">1.1 Carga de Carpeta de Pagos</p>
+                <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="pagosFolderInput">
+                <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** (si desea actualizar la data) o cargue directamente el Paso 2.</div>
+                
+                <div class="alert alert-light mt-2 py-1" id="pagosProcessStatus" style="display:none;"></div>
+                
+                <div class="hidden-filters">
+                    <select id="col1Select" class="form-select"></select>
+                    <select id="col2Select" class="form-select"></select>
+                    <select id="col3Select" class="form-select"></select>
+                    <select id="col4Select" class="form-select"></select>
+                    <button id="executeMerge">REALIZAR CRUCE DE DATOS (LEFT JOIN)</button>
+                </div>
+            </div>
+            
+            <div class="section-panel step-divider">
+                <div class="section-title">2. Carpeta de Asignaciones (Proceso Automático)</div>
+                
+                <p class="fw-bold">2.1 Carga de Carpeta de Asignaciones (Principal)</p>
+                <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput">
+                <div class="alert alert-info py-1" id="anexoStatus">Cargue la **Carpeta de Asignaciones** para iniciar el proceso de Limpieza y Cruce.</div>
+                
+                <p class="fw-bold mt-4">2.2 Proceso Automático (Limpieza y Cruce)</p>
+                
+                <div class="alert alert-light mt-2 py-1" id="dedupeStatus" style="display:none;"></div>
+                
+                <div id="preProcessConfig" class="hidden-filters">
+                    <select id="docColSelect" class="form-select"></select>
+                    <select id="secAggColSelect" class="form-select"></select>
+                    <select id="minColSelect" class="form-select"></select>
+                    <select id="maxColSelect" class="form-select"></select>
+                    <select id="dupCol1Select" class="form-select"></select>
+                    <select id="dupCol2Select" class="form-select"></select>
+                    <select id="dupCol3Select" class="form-select"></select>
+                </div>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4">
+                    <button class="btn btn-primary btn-lg" onclick="downloadFile(mergedData, 'resultado_cruce_final.csv', '|');" id="downloadMergeBtn" style="display:none;">
+                        Descargar Data
+                    </button>
+                    <button id="downloadAnexoBtn" style="display:none;"></button>
+                </div>
+                
+            </div>
         </div>
-    </div>
-    
-    <div class="section-panel step-divider">
-        <div class="section-title">2. Carpeta de Asignaciones (Proceso Automático)</div>
-        
-        <p class="fw-bold">2.1 Carga de Carpeta de Asignaciones (Principal)</p>
-        <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput">
-        <div class="alert alert-info py-1" id="anexoStatus">Cargue la **Carpeta de Asignaciones** para iniciar el proceso de Limpieza y Cruce.</div>
-        
-        <p class="fw-bold mt-4">2.2 Proceso Automático (Limpieza y Cruce)</p>
-        
-        <div class="alert alert-light mt-2 py-1" id="dedupeStatus" style="display:none;"></div>
-        
-        <div id="preProcessConfig" class="hidden-filters">
-            <select id="docColSelect" class="form-select"></select>
-            <select id="secAggColSelect" class="form-select"></select>
-            <select id="minColSelect" class="form-select"></select>
-            <select id="maxColSelect" class="form-select"></select>
-            <select id="dupCol1Select" class="form-select"></select>
-            <select id="dupCol2Select" class="form-select"></select>
-            <select id="dupCol3Select" class="form-select"></select>
+
+        <div class="tab-pane fade" id="azzorti" role="tabpanel" aria-labelledby="azzorti-tab">
+            <div class="alert alert-info">
+                Módulo Azzorti en construcción. Aquí se implementarán sus procesos de automatización.
+            </div>
         </div>
-        
-        <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4">
-            <button class="btn btn-primary btn-lg" onclick="downloadFile(mergedData, 'resultado_cruce_final.csv', '|');" id="downloadMergeBtn" style="display:none;">
-                Descargar Data
-            </button>
-            <button id="downloadAnexoBtn" style="display:none;"></button>
+
+        <div class="tab-pane fade" id="otra" role="tabpanel" aria-labelledby="otra-tab">
+            <div class="alert alert-info">
+                Módulo Adicional en construcción.
+            </div>
         </div>
-        
     </div>
 </div>
 
@@ -81,13 +109,13 @@
 
 <script>
     // Variables globales
-    let db;                     // Objeto IndexedDB
+    let db;                     // Objeto IndexedDB
     const CACHE_KEY_PAGOS = 'processedPagosData';
 
-    let dataFilePagos = null;    
-    let dataFileAsignaciones = null; 
-    let processedDataAsignaciones = null; 
-    let mergedData = null;       
+    let dataFilePagos = null;    
+    let dataFileAsignaciones = null; 
+    let processedDataAsignaciones = null; 
+    let mergedData = null;       
 
     // Elementos del DOM
     const folderInput = document.getElementById('folderInput');
@@ -110,8 +138,8 @@
     const COL_MES_PAGOS = 'MES';
     const COL_FECHA_MAX_PAGOS = 'Fecha_Movimiento_Maxima';
     const COL_VALOR_PAGADO = 'Suma_Valor_Pagado';
-    const COL_VALOR_PAGADO_RAW = 'Valor Pagado'; 
-    const COL_FECHA_MOV = 'Fecha Movimiento'; 
+    const COL_VALOR_PAGADO_RAW = 'Valor Pagado'; 
+    const COL_FECHA_MOV = 'Fecha Movimiento'; 
 
     // --- Funciones de IndexedDB (CACHÉ) ---
 
@@ -228,14 +256,14 @@
                     header: true,
                     skipEmptyLines: true,
                     dynamicTyping: false,
-                    delimiter: delimiter, 
-                    fastMode: fastMode, 
+                    delimiter: delimiter, 
+                    fastMode: fastMode, 
                     complete: (results) => resolve(results),
                     error: (error) => reject(error)
                 });
             };
             reader.onerror = (error) => reject(error);
-            reader.readAsText(file.slice(0, 1024 * 10), 'UTF-8'); 
+            reader.readAsText(file.slice(0, 1024 * 10), 'UTF-8'); 
         });
     }
 
@@ -258,24 +286,26 @@
     }
     
     const parseDate = (dateString) => {
-        if (!dateString) return new Date(0); 
+        if (!dateString) return new Date(0); 
         let dateParts = dateString.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
         if (dateParts) {
+            // Asume DD/MM/YYYY o DD-MM-YYYY
             const d = new Date(parseInt(dateParts[3]), parseInt(dateParts[2]) - 1, parseInt(dateParts[1]));
             if (!isNaN(d.getTime())) return d;
-        } 
+        } 
         dateParts = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
-         if (dateParts) {
+           if (dateParts) {
+            // Asume YYYY-MM-DD
             const d = new Date(parseInt(dateParts[1]), parseInt(dateParts[2]) - 1, parseInt(dateParts[3]));
             if (!isNaN(d.getTime())) return d;
-        } 
-        return new Date(0); 
+        } 
+        return new Date(0); 
     };
     
     const formatDateToDDMMYYYY = (date) => {
         const d = new Date(date);
         const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0'); 
+        const month = String(d.getMonth() + 1).padStart(2, '0'); 
         const year = d.getFullYear();
         return `${day}/${month}/${year}`;
     };
@@ -288,7 +318,7 @@
         
         let integerPart = (splitIndex !== -1) ? strValue.substring(0, splitIndex) : strValue;
         
-        integerPart = integerPart.replace(/[^0-9-]/g, ''); 
+        integerPart = integerPart.replace(/[^0-9-]/g, ''); 
         return parseInt(integerPart, 10) || 0;
     }
 
@@ -307,7 +337,7 @@
         
         dedupeStatus.textContent = '🚀 CRUCE DE DATOS AUTOMÁTICO EN CURSO... Por favor, espere.';
         dedupeStatus.className = 'alert alert-warning py-1';
-        downloadMergeBtn.style.display = 'none'; 
+        downloadMergeBtn.style.display = 'none'; 
 
         setTimeout(() => {
             
@@ -335,11 +365,11 @@
 
                 const row2Data = map2.get(searchKey) || {};
                 
-                const newRow = { ...row1 }; 
+                const newRow = { ...row1 }; 
                 let isMatch = Object.keys(row2Data).length > 0;
                 
                 for (const field of headers2) {
-                    newRow[field] = isMatch ? row2Data[field] : ''; 
+                    newRow[field] = isMatch ? row2Data[field] : ''; 
                 }
                 mergedResults.push(newRow);
             });
@@ -349,15 +379,15 @@
             if (mergedData.length > 0) {
                 dedupeStatus.textContent = `✅ **PROCESO FINALIZADO**. Data lista para descargar.`;
                 dedupeStatus.className = 'alert alert-success py-1';
-                downloadMergeBtn.style.display = 'block'; 
+                downloadMergeBtn.style.display = 'block'; 
             } else {
                 dedupeStatus.textContent = `⚠️ Error: El cruce no generó resultados válidos. Revise la Carpeta de Pagos y la Carpeta de Asignaciones.`;
                 dedupeStatus.className = 'alert alert-danger py-1';
             }
             
-            processedDataAsignaciones = null; 
+            processedDataAsignaciones = null; 
 
-        }, 50); 
+        }, 50); 
     }
 
     // --- Lógica del Procesamiento de Pagos (Paso 1) ---
@@ -372,7 +402,7 @@
         for (const file of files) {
             if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) continue;
             try {
-                const results = await parseFile(file, true); 
+                const results = await parseFile(file, true); 
                 allData.push(...results.data);
             } catch (e) {
                 console.error(`Error al parsear archivo ${file.name}:`, e);
@@ -395,7 +425,7 @@
             const docValue = String(row[COL_DOC_PAGOS] || '').trim();
             const fechaMovStr = String(row[COL_FECHA_MOV] || '').trim();
             
-            if (!docValue || !fechaMovStr) return; 
+            if (!docValue || !fechaMovStr) return; 
 
             const fechaMov = parseDate(fechaMovStr);
             if (isNaN(fechaMov.getTime())) return;
@@ -407,8 +437,8 @@
                 aggregatedMap.set(groupKey, {
                     [COL_DOC_PAGOS]: docValue,
                     [COL_MES_PAGOS]: mes,
-                    [COL_FECHA_MOV]: fechaMov, 
-                    [COL_VALOR_PAGADO]: valorPagadoEntero, 
+                    [COL_FECHA_MOV]: fechaMov, 
+                    [COL_VALOR_PAGADO]: valorPagadoEntero, 
                 });
             } else {
                 const data = aggregatedMap.get(groupKey);
@@ -423,7 +453,7 @@
             return {
                 [COL_DOC_PAGOS]: data[COL_DOC_PAGOS],
                 [COL_MES_PAGOS]: data[COL_MES_PAGOS],
-                [COL_FECHA_MAX_PAGOS]: formatDateToDDMMYYYY(data[COL_FECHA_MOV]), 
+                [COL_FECHA_MAX_PAGOS]: formatDateToDDMMYYYY(data[COL_FECHA_MOV]), 
                 [COL_VALOR_PAGADO]: data[COL_VALOR_PAGADO],
             };
         });
@@ -446,10 +476,10 @@
         }
     }
 
-    // --- Lógica del Procesamiento de Asignaciones (Paso 2) (Igual que antes) ---
+    // --- Lógica del Procesamiento de Asignaciones (Paso 2) (Modificación de Estado Real) ---
 
     function executeAsignacionesPreProcess() {
-        if (!dataFileAsignaciones) return; 
+        if (!dataFileAsignaciones) return; 
         
         if (!dataFilePagos) {
             dedupeStatus.textContent = `⚠️ ERROR: Cargue la Carpeta de Pagos (Paso 1) primero.`;
@@ -465,27 +495,28 @@
 
         setTimeout(() => {
             const docCol = COL_DOC_PRIN;
-            const secAggCol = COL_MES_PRIN; 
-            const minDateCol = COL_FECHA_PRIN; 
-            const maxDateCol = COL_FECHA_PRIN; 
+            const secAggCol = COL_MES_PRIN; 
+            const minDateCol = COL_FECHA_PRIN; 
+            const maxDateCol = COL_FECHA_PRIN; 
             
+            // --- MODIFICACIÓN CLAVE: OBTENER FECHA DE HOY FORMATEADA ---
             const today = new Date();
-            today.setHours(0, 0, 0, 0); 
-            const yesterday = new Date(today);
-            yesterday.setDate(today.getDate() - 1);
-            const formattedYesterday = formatDateToDDMMYYYY(yesterday);
+            today.setHours(0, 0, 0, 0); 
+            const formattedToday = formatDateToDDMMYYYY(today);
+            // -----------------------------------------------------------
+
             const aggregatedMap = new Map();
             
             // --- AGRUPACIÓN Y AGREGACIÓN ---
             dataFileAsignaciones.forEach(row => {
                 const docValue = String(row[docCol] || '').trim();
-                const secAggValue = String(row[secAggCol] || '').trim(); 
-                if (!docValue || !secAggValue) return; 
+                const secAggValue = String(row[secAggCol] || '').trim(); 
+                if (!docValue || !secAggValue) return; 
                 const groupKey = `${docValue}|${secAggValue}`;
                 
                 const minDateValue = parseDate(row[minDateCol]);
-                const maxDateValue = parseDate(row[maxDateCol]); 
-                if (isNaN(minDateValue.getTime()) || isNaN(maxDateValue.getTime())) return; 
+                const maxDateValue = parseDate(row[maxDateCol]); 
+                if (isNaN(minDateValue.getTime()) || isNaN(maxDateValue.getTime())) return; 
                 
                 if (!aggregatedMap.has(groupKey)) {
                     aggregatedMap.set(groupKey, { minDate: minDateValue, maxDate: maxDateValue, latestRow: {...row} });
@@ -494,18 +525,22 @@
                     if (minDateValue.getTime() < data.minDate.getTime()) data.minDate = minDateValue;
                     if (maxDateValue.getTime() >= data.maxDate.getTime()) {
                         data.maxDate = maxDateValue;
-                        data.latestRow = {...row}; 
+                        data.latestRow = {...row}; 
                     }
                 }
             });
             
             let finalData = [];
-            for (const data of aggregatedMap.values()) { 
+            for (const data of aggregatedMap.values()) { 
                 const finalRow = data.latestRow;
                 const salidaDateStr = formatDateToDDMMYYYY(data.maxDate);
                 finalRow['Ingreso'] = formatDateToDDMMYYYY(data.minDate);
                 finalRow['Salida'] = salidaDateStr;
-                finalRow['Estado Real'] = (salidaDateStr === formattedYesterday) ? 'ACTIVO' : 'INACTIVO';
+                
+                // --- MODIFICACIÓN CLAVE: COMPARAR CON HOY ---
+                finalRow['Estado Real'] = (salidaDateStr === formattedToday) ? 'ACTIVO' : 'INACTIVO';
+                // ---------------------------------------------
+                
                 finalData.push(finalRow);
             }
             
@@ -515,7 +550,7 @@
             
             if (dupCols.length > 0) {
                  finalData.forEach(row => {
-                    const key = dupCols.map(col => String(row[col] || '').trim()).join('|'); 
+                    const key = dupCols.map(col => String(row[col] || '').trim()).join('|'); 
                     if (!seenKeys.has(key)) {
                         seenKeys.add(key);
                         deduplicatedData.push(row);
@@ -524,9 +559,9 @@
                 finalData = deduplicatedData;
             }
             
-            processedDataAsignaciones = finalData; 
+            processedDataAsignaciones = finalData; 
             const finalRowCount = processedDataAsignaciones.length;
-            dataFileAsignaciones = null; 
+            dataFileAsignaciones = null; 
             
             dedupeStatus.textContent = `✅ Limpieza de data de Asignaciones completada. Filas finales: ${finalRowCount}.`;
             dedupeStatus.className = 'alert alert-info py-1';
@@ -538,7 +573,7 @@
         }, 50);
     }
     
-    // --- EVENTOS DE CARGA ---
+    // --- EVENTOS DE CARGA (Sin cambios) ---
 
     // Evento 1: Carga de Carpeta de Pagos (Paso 1)
     pagosFolderInput.addEventListener('change', async (event) => {
@@ -548,9 +583,9 @@
             pagosStatus.className = 'alert alert-danger py-1';
             return;
         }
-        dataFilePagos = null; 
+        dataFilePagos = null; 
         executePagosProcess(files);
-        downloadMergeBtn.style.display = 'none'; 
+        downloadMergeBtn.style.display = 'none'; 
     });
 
     // Evento 2: Carga de Carpeta de Asignaciones (Paso 2)
@@ -571,10 +606,10 @@
 
         for (const file of files) {
             try {
-                const results = await parseFile(file, true); 
+                const results = await parseFile(file, true); 
                 
-                const match = file.name.match(/(\d{2}[-.]\d{2}[-.]\d{4})/); 
-                let formattedDate = '01/01/1900'; 
+                const match = file.name.match(/(\d{2}[-.]\d{2}[-.]\d{4})/); 
+                let formattedDate = '01/01/1900'; 
                 let month = '01';
                 let year = '1900';
                 
@@ -582,18 +617,18 @@
                     const dateStr = match[0];
                     const parts = dateStr.match(/(\d{2})[-.](\d{2})[-.](\d{4})/);
                     if (parts && parts.length === 4) {
-                        formattedDate = `${parts[1]}/${parts[2]}/${parts[3]}`; 
+                        formattedDate = `${parts[1]}/${parts[2]}/${parts[3]}`; 
                         month = parts[2];
                         year = parts[3];
                     }
                 }
-                const monthFinal = parseInt(month, 10).toString(); 
+                const monthFinal = parseInt(month, 10).toString(); 
 
                 const processedRows = results.data.map(row => {
                     const newRow = {...row};
-                    newRow[COL_FECHA_PRIN] = formattedDate; 
-                    newRow[COL_MES_PRIN] = monthFinal; 
-                    newRow[COL_ANIO_PRIN] = year; 
+                    newRow[COL_FECHA_PRIN] = formattedDate; 
+                    newRow[COL_MES_PRIN] = monthFinal; 
+                    newRow[COL_ANIO_PRIN] = year; 
                     return newRow;
                 });
                 
@@ -605,7 +640,7 @@
         }
         
         if (allData.length > 0) {
-            dataFileAsignaciones = allData; 
+            dataFileAsignaciones = allData; 
             anexoStatus.textContent = `¡Consolidación de Asignaciones lista! Iniciando limpieza automática...`;
             anexoStatus.className = 'alert alert-info py-1';
             
