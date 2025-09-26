@@ -24,12 +24,14 @@
 <div class="container">
     <h1 class="text-center">Comfama Financiera - YesBPO | Automatización</h1>
 
-    <div id="cruceSection" class="section-panel">
-        <div class="section-title text-success">1. Archivo de Pagos</div>
+    <div id="pagosSection" class="section-panel">
+        <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Transformación)</div>
         
-        <p class="fw-bold">1.1 Carga de Archivo de Pagos (Secundario)</p>
-        <input type="file" class="form-control mb-3" id="file2Input" accept=".csv,.txt" required>
-        <div class="alert alert-info py-1" id="file2Status">Cargue el **Archivo de Pagos** (referencia) para continuar.</div>
+        <p class="fw-bold">1.1 Carga de Carpeta de Pagos</p>
+        <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="pagosFolderInput">
+        <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** para iniciar la consolidación y transformación.</div>
+        
+        <div class="alert alert-light mt-2 py-1" id="pagosProcessStatus" style="display:none;"></div>
         
         <div class="hidden-filters">
             <select id="col1Select" class="form-select"></select>
@@ -38,7 +40,6 @@
             <select id="col4Select" class="form-select"></select>
             <button id="executeMerge">REALIZAR CRUCE DE DATOS (LEFT JOIN)</button>
         </div>
-        <div id="mergeResult" class="hidden-preview"></div>
     </div>
     
     <div class="section-panel step-divider">
@@ -46,7 +47,7 @@
         
         <p class="fw-bold">2.1 Carga de Carpeta de Asignaciones (Principal)</p>
         <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput">
-        <div class="alert alert-info py-1" id="anexoStatus">Cargue la **Carpeta de Asignaciones** (consolidados) para iniciar el proceso.</div>
+        <div class="alert alert-info py-1" id="anexoStatus">Cargue la **Carpeta de Asignaciones** para iniciar el proceso de Limpieza y Cruce.</div>
         
         <p class="fw-bold mt-4">2.2 Proceso Automático (Limpieza y Cruce)</p>
         
@@ -78,15 +79,23 @@
 
 <script>
     // Variables globales
-    let consolidatedData = null; 
-    let processedData = null;    
-    let dataFile2 = null;        
+    let dataFilePagos = null;    // Resultado del Paso 1 (Pagos procesados)
+    let dataFileAsignaciones = null; // Data consolidada cruda del Paso 2
+    let processedDataAsignaciones = null; // Resultado de la limpieza del Paso 2
     let mergedData = null;       
 
-    // Elementos del DOM (Simplificados, se mantienen para la lógica)
+    // Elementos del DOM
     const folderInput = document.getElementById('folderInput');
     const anexoStatus = document.getElementById('anexoStatus');
-    const downloadAnexoBtn = document.getElementById('downloadAnexoBtn');
+    const dedupeStatus = document.getElementById('dedupeStatus');
+    const downloadMergeBtn = document.getElementById('downloadMergeBtn');
+    
+    // Elementos del nuevo Paso 1 (Pagos)
+    const pagosFolderInput = document.getElementById('pagosFolderInput');
+    const pagosStatus = document.getElementById('pagosStatus');
+    const pagosProcessStatus = document.getElementById('pagosProcessStatus');
+    
+    // Selectores Ocultos (Mantenidos por consistencia de la lógica)
     const docColSelect = document.getElementById('docColSelect'); 
     const secAggColSelect = document.getElementById('secAggColSelect'); 
     const minColSelect = document.getElementById('minColSelect');
@@ -94,36 +103,52 @@
     const dupCol1Select = document.getElementById('dupCol1Select');
     const dupCol2Select = document.getElementById('dupCol2Select');
     const dupCol3Select = document.getElementById('dupCol3Select');
-    const dedupeStatus = document.getElementById('dedupeStatus');
-    const file2Input = document.getElementById('file2Input');
-    const file2Status = document.getElementById('file2Status');
     const col1Select = document.getElementById('col1Select'); 
     const col2Select = document.getElementById('col2Select'); 
     const col3Select = document.getElementById('col3Select'); 
     const col4Select = document.getElementById('col4Select'); 
-    const downloadMergeBtn = document.getElementById('downloadMergeBtn');
-    
+
     // --- Definición de Nombres de Columnas para Automatización ---
+    // Asignaciones (Paso 2 - Principal)
     const COL_DOC_PRIN = 'Numero Documento';
     const COL_MES_PRIN = 'Mes data';
     const COL_FECHA_PRIN = 'Nombre del archivo';
     const COL_ANIO_PRIN = 'Año';
-    const COL_DOC_SEC = 'Numero de Documento';
-    const COL_MES_SEC = 'MES';
 
-    // --- Funciones de Utilidad ---
+    // Pagos (Paso 1 - Secundario) - Columnas requeridas después de la transformación
+    const COL_DOC_PAGOS = 'Numero de Documento';
+    const COL_MES_PAGOS = 'MES';
+    const COL_FECHA_MAX_PAGOS = 'Fecha_Movimiento_Maxima';
+    const COL_VALOR_PAGADO = 'Suma_Valor_Pagado';
+    // Columna a procesar en Pagos
+    const COL_FECHA_MOV = 'Fecha Movimiento'; 
+
+    // --- Funciones de Utilidad y Transformación ---
+
+    function determineDelimiter(fileChunk) {
+        if (fileChunk.includes('|')) return '|';
+        if (fileChunk.includes(';')) return ';';
+        return ','; // Delimitador por defecto
+    }
 
     function parseFile(file, fastMode = false) {
         return new Promise((resolve, reject) => {
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                dynamicTyping: false,
-                delimiter: "", 
-                fastMode: fastMode, 
-                complete: (results) => resolve(results),
-                error: (error) => reject(error)
-            });
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const chunk = event.target.result.substring(0, 1024);
+                const delimiter = determineDelimiter(chunk);
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: false,
+                    delimiter: delimiter, 
+                    fastMode: fastMode, 
+                    complete: (results) => resolve(results),
+                    error: (error) => reject(error)
+                });
+            };
+            reader.onerror = (error) => reject(error);
+            reader.readAsText(file.slice(0, 1024 * 10), 'UTF-8'); // Leer los primeros 10KB para identificar el delimitador
         });
     }
 
@@ -149,11 +174,13 @@
         if (!dateString) return new Date(0); 
         let dateParts = dateString.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
         if (dateParts) {
+            // Asume DD/MM/YYYY o DD.MM.YYYY
             const d = new Date(parseInt(dateParts[3]), parseInt(dateParts[2]) - 1, parseInt(dateParts[1]));
             if (!isNaN(d.getTime())) return d;
         } 
         dateParts = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
          if (dateParts) {
+            // Asume YYYY-MM-DD
             const d = new Date(parseInt(dateParts[1]), parseInt(dateParts[2]) - 1, parseInt(dateParts[3]));
             if (!isNaN(d.getTime())) return d;
         } 
@@ -188,7 +215,7 @@
         const selectors1 = [col1Select, col3Select];
         const selectors2 = [col2Select, col4Select];
         
-        // Archivo Principal (data1)
+        // 1. Archivo Principal (Asignaciones)
         selectors1.forEach(select => {
             const isKey1 = (select.id === 'col1Select');
             select.innerHTML = '';
@@ -205,7 +232,7 @@
             }
         });
 
-        // Archivo Secundario (data2)
+        // 2. Archivo Secundario (Pagos)
         selectors2.forEach(select => {
             const isKey1 = (select.id === 'col2Select');
             select.innerHTML = '';
@@ -215,31 +242,32 @@
                 option.textContent = field;
                 select.appendChild(option);
             });
-            if (isKey1 && fields2.includes(COL_DOC_SEC)) {
-                select.value = COL_DOC_SEC;
-            } else if (!isKey1 && fields2.includes(COL_MES_SEC)) {
-                select.value = COL_MES_SEC;
-            } else if (isKey1 && fields2.includes(COL_DOC_PRIN)) {
-                select.value = COL_DOC_PRIN;
+            // Automáticamente seleccionamos las columnas transformadas de Pagos
+            if (isKey1 && fields2.includes(COL_DOC_PAGOS)) {
+                select.value = COL_DOC_PAGOS;
+            } else if (!isKey1 && fields2.includes(COL_MES_PAGOS)) {
+                select.value = COL_MES_PAGOS;
             }
         });
     }
 
-    // --- FUNCIÓN DE CRUCE (Se llama al final) ---
-    function executeMerge() {
-        if (!processedData || !dataFile2) return; 
+    // --- Lógica del Cruce ---
 
-        const key1_A = col1Select.value; 
-        const key1_B = col2Select.value; 
-        const key2_A = col3Select.value; 
-        const key2_B = col4Select.value; 
+    function executeMerge() {
+        if (!processedDataAsignaciones || !dataFilePagos) {
+            return;
+        }
+
+        const key1_A = col1Select.value; // Numero Documento Asignaciones
+        const key1_B = col2Select.value; // Numero de Documento Pagos
+        const key2_A = col3Select.value; // Mes data Asignaciones
+        const key2_B = col4Select.value; // MES Pagos
         
-        if (!key1_A || !key1_B) {
-            dedupeStatus.textContent = 'ERROR: No se pudo configurar el cruce. Revise los nombres de columnas clave.';
+        if (!key1_A || !key1_B || !key2_A || !key2_B) {
+            dedupeStatus.textContent = 'ERROR: No se pudo configurar el cruce. Faltan claves (Documento o Mes).';
             dedupeStatus.className = 'alert alert-danger py-1';
             return;
         }
-        const useKey2 = key2_A && key2_B;
 
         dedupeStatus.textContent = '🚀 CRUCE DE DATOS AUTOMÁTICO EN CURSO... Por favor, espere.';
         dedupeStatus.className = 'alert alert-warning py-1';
@@ -247,45 +275,45 @@
 
         setTimeout(() => {
             
-            const data1 = processedData;
-            const data2 = dataFile2.data;
-            const headers2 = dataFile2.meta.fields.filter(h => h !== key1_B && (!useKey2 || h !== key2_B));
+            const data1 = processedDataAsignaciones;
+            const data2 = dataFilePagos;
+            
+            // Los headers de Pagos son las 4 columnas transformadas
+            const headers2 = [COL_FECHA_MAX_PAGOS, COL_VALOR_PAGADO];
 
-            // 1. Crear el mapa de búsqueda (data2)
+            // 1. Crear el mapa de búsqueda (data2 - Pagos)
             const map2 = new Map();
             data2.forEach(row => {
-                let keyValue = String(row[key1_B] || '').trim();
-                if (useKey2) keyValue += `|${String(row[key2_B] || '').trim()}`;
+                // Clave compuesta: Documento|MES
+                const keyValue = `${String(row[key1_B] || '').trim()}|${String(row[key2_B] || '').trim()}`;
                 
                 if (keyValue) {
                     const rowData = {};
                     headers2.forEach(field => rowData[field] = row[field]);
-                    if (!map2.has(keyValue)) map2.set(keyValue, []);
-                    map2.get(keyValue).push(rowData);
+                    // En Pagos ya está agrupado, solo debería haber una fila por clave
+                    map2.set(keyValue, rowData);
                 }
             });
             
-            dataFile2 = null; 
+            dataFilePagos = null; 
 
-            // 2. Realizar el LEFT JOIN (data1)
+            // 2. Realizar el LEFT JOIN (data1 - Asignaciones)
             const mergedResults = [];
             
             data1.forEach(row1 => {
-                let searchKey = String(row1[key1_A] || '').trim();
-                if (useKey2) searchKey += `|${String(row1[key2_A] || '').trim()}`;
+                // Clave de búsqueda: Documento|Mes data
+                const searchKey = `${String(row1[key1_A] || '').trim()}|${String(row1[key2_A] || '').trim()}`;
 
-                const matchingRows2 = map2.has(searchKey) ? map2.get(searchKey) : [{}];
+                const row2Data = map2.get(searchKey) || {};
                 
-                matchingRows2.forEach(row2Data => {
-                    const newRow = { ...row1 }; 
-                    let isMatch = Object.keys(row2Data).length > 0;
-                    
-                    for (const field of headers2) {
-                        const newFieldName = Object.prototype.hasOwnProperty.call(newRow, field) ? `${field}_Arch2` : field;
-                        newRow[newFieldName] = isMatch ? row2Data[field] : ''; 
-                    }
-                    mergedResults.push(newRow);
-                });
+                const newRow = { ...row1 }; 
+                let isMatch = Object.keys(row2Data).length > 0;
+                
+                for (const field of headers2) {
+                    // Agregamos las columnas Fecha_Movimiento_Maxima y Suma_Valor_Pagado
+                    newRow[field] = isMatch ? row2Data[field] : ''; 
+                }
+                mergedResults.push(newRow);
             });
 
             mergedData = mergedResults;
@@ -300,31 +328,115 @@
             }
             
             // Liberar memoria
-            processedData = null;
+            processedDataAsignaciones = null;
 
         }, 50); 
     }
 
-    // --- FUNCIÓN DE PROCESAMIENTO INICIAL (Paso 1) ---
-    function executePreProcess() {
-        if (!consolidatedData) return; 
+    // --- Lógica del Procesamiento de Pagos (Paso 1) ---
 
-        dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de la data principal...`;
+    async function executePagosProcess(files) {
+        pagosProcessStatus.textContent = `⚙️ Consolidando ${files.length} archivos de Pagos...`;
+        pagosProcessStatus.className = 'alert alert-warning py-1';
+        pagosProcessStatus.style.display = 'block';
+
+        const allData = [];
+        let totalFilesProcessed = 0;
+
+        for (const file of files) {
+            if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) continue;
+            try {
+                const results = await parseFile(file, true); 
+                allData.push(...results.data);
+                totalFilesProcessed++;
+            } catch (e) {
+                console.error(`Error al parsear archivo ${file.name}:`, e);
+            }
+        }
+        
+        if (allData.length === 0) {
+            pagosProcessStatus.textContent = '❌ No se encontraron datos válidos en la Carpeta de Pagos.';
+            pagosProcessStatus.className = 'alert alert-danger py-1';
+            return;
+        }
+
+        pagosProcessStatus.textContent = `⚙️ Agrupando y transformando ${allData.length} filas...`;
+        
+        // 1. Agrupar, transformar y agregar
+        const aggregatedMap = new Map();
+
+        allData.forEach(row => {
+            // Transformación: Crear MES y Normalizar Valor_Pagado y Doc
+            const docValue = String(row[COL_DOC_PAGOS] || '').trim();
+            const fechaMovStr = String(row[COL_FECHA_MOV] || '').trim();
+            let valorPagado = parseFloat(String(row[COL_VALOR_PAGADO] || '0').replace(/\./g, '').replace(/,/g, '.')) || 0;
+            
+            if (!docValue || !fechaMovStr) return; 
+
+            const fechaMov = parseDate(fechaMovStr);
+            if (isNaN(fechaMov.getTime())) return;
+
+            const mes = String(fechaMov.getMonth() + 1); // 1-12
+            const groupKey = `${docValue}|${mes}`;
+            
+            if (!aggregatedMap.has(groupKey)) {
+                aggregatedMap.set(groupKey, {
+                    [COL_DOC_PAGOS]: docValue,
+                    [COL_MES_PAGOS]: mes,
+                    [COL_FECHA_MOV]: fechaMov, // Usamos la fecha real (Date object) para el cálculo del Max
+                    [COL_VALOR_PAGADO]: valorPagado,
+                });
+            } else {
+                const data = aggregatedMap.get(groupKey);
+                // Fecha Máxima
+                if (fechaMov.getTime() > data[COL_FECHA_MOV].getTime()) {
+                    data[COL_FECHA_MOV] = fechaMov;
+                }
+                // Suma de Valores
+                data[COL_VALOR_PAGADO] += valorPagado;
+            }
+        });
+        
+        // 2. Formato final y eliminación de columnas
+        dataFilePagos = Array.from(aggregatedMap.values()).map(data => {
+            return {
+                [COL_DOC_PAGOS]: data[COL_DOC_PAGOS],
+                [COL_MES_PAGOS]: data[COL_MES_PAGOS],
+                [COL_FECHA_MAX_PAGOS]: formatDateToDDMMYYYY(data[COL_FECHA_MOV]), // Formatear la fecha máxima
+                [COL_VALOR_PAGADO]: data[COL_VALOR_PAGADO],
+            };
+        });
+
+        pagosProcessStatus.textContent = `✅ **Proceso de Pagos Completado**. Filas: ${dataFilePagos.length}.`;
+        pagosProcessStatus.className = 'alert alert-success py-1';
+        pagosStatus.textContent = `Consolidación de Pagos finalizada. Ahora, cargue la Carpeta de Asignaciones (Paso 2).`;
+        pagosStatus.className = 'alert alert-success py-1';
+
+        // Si la data de Asignaciones ya está lista, iniciar el cruce
+        if (processedDataAsignaciones) {
+            const fields1 = Object.keys(processedDataAsignaciones[0]);
+            const fields2 = Object.keys(dataFilePagos[0]);
+            populateColumnSelectorsForMerge(fields1, fields2);
+            executeMerge();
+        }
+    }
+
+    // --- Lógica del Procesamiento de Asignaciones (Paso 2) ---
+
+    function executeAsignacionesPreProcess() {
+        if (!dataFileAsignaciones) return; 
+
+        dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de la data de Asignaciones...`;
         dedupeStatus.className = 'alert alert-warning py-1';
         dedupeStatus.style.display = 'block';
         downloadMergeBtn.style.display = 'none';
 
         setTimeout(() => {
-            const docCol = docColSelect.value;
-            const secAggCol = secAggColSelect.value; 
-            const minDateCol = minColSelect.value; 
-            const maxDateCol = maxColSelect.value; 
-
-            if (!docCol || !secAggCol || !minDateCol || !maxDateCol) {
-                 dedupeStatus.textContent = '❌ Error de Configuración: Las columnas clave del Consolidado no se encontraron.';
-                 dedupeStatus.className = 'alert alert-danger py-1';
-                 return;
-            }
+            // La configuración se asume de la versión anterior
+            const docCol = COL_DOC_PRIN;
+            const secAggCol = COL_MES_PRIN; 
+            const minDateCol = COL_FECHA_PRIN; 
+            const maxDateCol = COL_FECHA_PRIN; 
             
             const today = new Date();
             today.setHours(0, 0, 0, 0); 
@@ -333,8 +445,8 @@
             const formattedYesterday = formatDateToDDMMYYYY(yesterday);
             const aggregatedMap = new Map();
             
-            // Lógica de Agregación y Limpieza... (igual que en versiones anteriores)
-            consolidatedData.forEach(row => {
+            // --- AGRUPACIÓN Y AGREGACIÓN ---
+            dataFileAsignaciones.forEach(row => {
                 const docValue = String(row[docCol] || '').trim();
                 const secAggValue = String(row[secAggCol] || '').trim(); 
                 if (!docValue || !secAggValue) return; 
@@ -366,8 +478,8 @@
                 finalData.push(finalRow);
             }
             
-            // Lógica de Deduplicación... (igual que en versiones anteriores)
-            const dupCols = [docCol, secAggCol, dupCol1Select.value, dupCol2Select.value, dupCol3Select.value].filter(v => v);
+            // Lógica de Deduplicación (Se usa la lógica de la versión anterior)
+            const dupCols = [docCol, secAggCol, COL_ANIO_PRIN].filter(v => v);
             let deduplicatedData = [];
             const seenKeys = new Set();
             
@@ -382,99 +494,67 @@
                 finalData = deduplicatedData;
             }
             
-            processedData = finalData; 
-            const finalRowCount = processedData.length;
-            consolidatedData = null; 
+            processedDataAsignaciones = finalData; 
+            const finalRowCount = processedDataAsignaciones.length;
+            dataFileAsignaciones = null; 
             
             // Actualizar UI
-            dedupeStatus.textContent = `✅ Limpieza de data principal completada. Filas finales: ${finalRowCount}.`;
+            dedupeStatus.textContent = `✅ Limpieza de data de Asignaciones completada. Filas finales: ${finalRowCount}.`;
             dedupeStatus.className = 'alert alert-info py-1';
             
-            // Si el archivo secundario ya está cargado, ¡ejecutar el cruce de inmediato!
-            if (dataFile2) {
-                const consolidatedHeaders = Object.keys(processedData[0]);
-                const fields2 = dataFile2.meta.fields;
-                populateColumnSelectorsForMerge(consolidatedHeaders, fields2);
+            // Si el archivo de Pagos ya está procesado, ¡ejecutar el cruce de inmediato!
+            if (dataFilePagos) {
+                const fields1 = Object.keys(processedDataAsignaciones[0]);
+                const fields2 = Object.keys(dataFilePagos[0]);
+                populateColumnSelectorsForMerge(fields1, fields2);
                 executeMerge();
             } else {
-                // Si no, pedimos el Archivo de Pagos
-                dedupeStatus.textContent = `✅ Limpieza de data principal completada. Ahora, cargue el Archivo de Pagos para realizar el Cruce.`;
+                dedupeStatus.textContent = `✅ Limpieza de Asignaciones completada. Ahora, cargue la Carpeta de Pagos (Paso 1) para realizar el Cruce.`;
                 dedupeStatus.className = 'alert alert-info py-1';
-                anexoStatus.textContent = `Limpieza completada. Ya puede cargar el Archivo de Pagos (Paso 1).`;
+                anexoStatus.textContent = `Limpieza completada. Ya puede cargar la Carpeta de Pagos (Paso 1).`;
                 anexoStatus.className = 'alert alert-success py-1';
             }
 
         }, 50);
     }
     
-    // --- EVENTOS DE CARGA (Orden Invertido) ---
+    // --- EVENTOS DE CARGA ---
 
-    // Evento 1: Carga de Archivo de Pagos (Secundario)
-    file2Input.addEventListener('change', async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        file2Status.textContent = `Analizando archivo secundario ${file.name}...`;
-
-        try {
-            const data = await parseFile(file, true); 
-            const headers2 = data.meta.fields;
-            let rawData2 = data.data;
-            
-            if (rawData2.length > 0) {
-                const transformedData2 = rawData2.map(row => {
-                    const newRow = { ...row };
-                    if (headers2.includes(COL_DOC_SEC) && row[COL_DOC_SEC] !== undefined) newRow[COL_DOC_SEC] = String(row[COL_DOC_SEC]);
-                    if (headers2.includes(COL_MES_SEC) && row[COL_MES_SEC] !== undefined) newRow[COL_MES_SEC] = String(row[COL_MES_SEC]);
-                    return newRow;
-                });
-                dataFile2 = { data: transformedData2, meta: data.meta }; 
-            } else {
-                dataFile2 = data;
-            }
-            
-            file2Status.textContent = `✅ Archivo de Pagos cargado y listo. Filas: ${dataFile2.data.length}.`;
-            file2Status.className = 'alert alert-success py-1';
-            
-            // Si el Consolidado Principal ya está procesado, ejecutar el cruce
-            if (processedData) {
-                const fields1 = Object.keys(processedData[0]);
-                populateColumnSelectorsForMerge(fields1, headers2);
-                executeMerge();
-            } else {
-                // Si no, pedir la carpeta de Asignaciones
-                anexoStatus.textContent = `Archivo de Pagos listo. Ahora cargue la Carpeta de Asignaciones (Paso 2).`;
-                anexoStatus.className = 'alert alert-info py-1';
-            }
-            
-        } catch (error) {
-            file2Status.className = 'alert alert-danger py-1';
-            file2Status.textContent = `Error al cargar: ${error.message}`;
-            dataFile2 = null;
+    // Evento 1: Carga de Carpeta de Pagos (Paso 1)
+    pagosFolderInput.addEventListener('change', async (event) => {
+        const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
+        if (files.length === 0) {
+            pagosStatus.textContent = 'No se encontraron archivos CSV/TXT válidos en la carpeta.';
+            pagosStatus.className = 'alert alert-danger py-1';
+            return;
         }
+        dataFilePagos = null; // Resetear
+        executePagosProcess(files);
+        downloadMergeBtn.style.display = 'none'; // Ocultar mientras procesa
     });
 
-    // Evento 2: Carga de Carpeta de Asignaciones (Principal)
+    // Evento 2: Carga de Carpeta de Asignaciones (Paso 2)
     folderInput.addEventListener('change', async (event) => {
-        const files = event.target.files;
-        if (files.length === 0) return;
+        const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
+        if (files.length === 0) {
+            anexoStatus.textContent = 'No se encontraron archivos CSV/TXT válidos en la carpeta.';
+            anexoStatus.className = 'alert alert-danger py-1';
+            return;
+        }
 
-        anexoStatus.textContent = `Analizando ${files.length} archivos...`;
+        anexoStatus.textContent = `Analizando ${files.length} archivos de Asignaciones...`;
         anexoStatus.className = 'alert alert-warning py-1';
 
         const allData = [];
-        let fileCount = 0;
         let headers = new Set();
         
-        // Resetear descargas anteriores
         downloadMergeBtn.style.display = 'none';
 
         for (const file of files) {
-            if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) continue;
             try {
                 const results = await parseFile(file, true); 
                 
-                // Lógica de extracción de fechas del nombre del archivo (igual que antes)
+                // Lógica de metadatos (igual que antes)
                 const match = file.name.match(/(\d{2}[-.]\d{2}[-.]\d{4})/); 
                 let formattedDate = '01/01/1900'; 
                 let month = '01';
@@ -501,7 +581,6 @@
                 
                 allData.push(...processedRows);
                 processedRows.forEach(row => Object.keys(row).forEach(header => headers.add(header)));
-                fileCount++;
 
             } catch (e) {
                 console.error(`Error al parsear archivo ${file.name}:`, e);
@@ -509,22 +588,12 @@
         }
         
         if (allData.length > 0) {
-            consolidatedData = allData; 
-            anexoStatus.textContent = `¡Consolidación de ${fileCount} archivos lista! Iniciando limpieza automática...`;
+            dataFileAsignaciones = allData; 
+            anexoStatus.textContent = `¡Consolidación de Asignaciones lista! Iniciando limpieza automática...`;
             anexoStatus.className = 'alert alert-info py-1';
             
-            // Configurar Selectores Ocultos
-            const headersArray = Array.from(headers);
-            const presets = {
-                'docColSelect': COL_DOC_PRIN, 'secAggColSelect': COL_MES_PRIN,
-                'minColSelect': COL_FECHA_PRIN, 'maxColSelect': COL_FECHA_PRIN, 
-                'dupCol1Select': COL_DOC_PRIN, 'dupCol2Select': COL_MES_PRIN, 'dupCol3Select': COL_ANIO_PRIN
-            };
-            const preProcessSelectors = [docColSelect, secAggColSelect, minColSelect, maxColSelect, dupCol1Select, dupCol2Select, dupCol3Select];
-            populateSelectors(headersArray, preProcessSelectors, presets);
-            
-            // *** LLAMADA AUTOMÁTICA AL PROCESAMIENTO (Limpieza y luego Cruce) ***
-            executePreProcess();
+            // Ejecutar la limpieza y luego el cruce si Pagos está listo
+            executeAsignacionesPreProcess();
 
         } else {
             anexoStatus.textContent = 'No se encontraron archivos CSV/TXT válidos.';
