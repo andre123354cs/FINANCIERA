@@ -3,37 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comfama Financiera - YesBPO | Automatización (Auto-Procesamiento)</title>
+    <title>Comfama Financiera - YesBPO | Automatización Total (Secundario Primero)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         body { background-color: #f4f7f6; }
         .container { max-width: 1400px; margin-top: 20px; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
         .section-panel { padding: 15px; border: 1px solid #e0e0e0; border-radius: 0.25rem; margin-bottom: 20px; }
-        .data-table-container { max-height: 400px; overflow-y: auto; background-color: #f9f9f9; }
-        .data-table-container table { font-size: 0.8rem; }
-        .data-table-container th, .data-table-container td { white-space: nowrap; padding: 5px; }
         .step-divider { border-top: 4px solid #0d6efd; margin-top: 30px; margin-bottom: 30px; padding-top: 15px; }
         h1 { color: #0d6efd; font-weight: 700; margin-bottom: 30px; }
         .section-title { font-size: 1.5rem; color: #495057; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
-        /* Clases para ocultar vistas previas y filtros */
+        /* Clases para ocultar elementos de configuración y filtros */
         .hidden-preview { display: none !important; }
-        .hidden-filters select { display: none !important; } 
+        .hidden-filters select, .hidden-filters button { display: none !important; } 
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1 class="text-center">Comfama Financiera - YesBPO | Automatización Final 🚀</h1>
+    <h1 class="text-center">Comfama Financiera - YesBPO | Automatización Total de Datos 🚀</h1>
 
-    <div class="section-panel">
-        <div class="section-title">1. Archivo Principal: Consolidación y Limpieza</div>
+    <div id="cruceSection" class="section-panel">
+        <div class="section-title text-success">1. Archivo Secundario (Carga Primero)</div>
         
-        <p class="fw-bold">1.1 Carga de Datos</p>
+        <p class="fw-bold">1.1 Carga de Archivo Secundario</p>
+        <input type="file" class="form-control mb-3" id="file2Input" accept=".csv,.txt" required>
+        <div class="alert alert-info py-1" id="file2Status">Cargue el archivo secundario (referencia) para continuar.</div>
+        
+        <div class="hidden-filters">
+            <select id="col1Select" class="form-select"></select>
+            <select id="col2Select" class="form-select"></select>
+            <select id="col3Select" class="form-select"></select>
+            <select id="col4Select" class="form-select"></select>
+            <button id="executeMerge">REALIZAR CRUCE DE DATOS (LEFT JOIN)</button>
+        </div>
+        <div id="mergeResult" class="hidden-preview"></div>
+    </div>
+    
+    <div class="section-panel step-divider">
+        <div class="section-title">2. Archivo Principal: Consolidación y Limpieza (Automático)</div>
+        
+        <p class="fw-bold">2.1 Carga de Carpeta Principal</p>
         <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput">
-        <div class="alert alert-info py-1" id="anexoStatus">Esperando selección de carpeta...</div>
+        <div class="alert alert-info py-1" id="anexoStatus">Cargue la carpeta con los archivos principales (consolidados).</div>
         
-        <p class="fw-bold mt-4">1.2 Proceso Automático (No requiere clic)</p>
+        <p class="fw-bold mt-4">2.2 Proceso Automático (Limpieza y Cruce)</p>
         
         <div class="alert alert-light mt-2 py-1" id="dedupeStatus" style="display:none;"></div>
         
@@ -47,69 +61,18 @@
             <select id="dupCol3Select" class="form-select"></select>
         </div>
         
-        <button class="btn btn-primary mt-3" onclick="downloadFile(processedData, 'consolidado_procesado.csv', '|');" id="downloadAnexoBtn" style="display:none;">
-            Descargar Archivo Principal (Delimitador: |)
-        </button>
-
-    </div>
-
-    <div id="cruceSection" class="step-divider" >
-        <div class="section-panel bg-light">
-            <div class="section-title text-success">2. Cruce de Datos (LEFT JOIN)</div>
-            
-            <p class="fw-bold">2.1 Carga de Archivo Secundario</p>
-            <input type="file" class="form-control mb-3" id="file2Input" accept=".csv,.txt" required>
-            <div class="alert alert-info py-1" id="file2Status">Cargue un archivo secundario...</div>
-            
-            <p class="fw-bold mt-4">2.2 Ejecución del Cruce (Configuración Automática)</p>
-            
-            <div class="hidden-filters">
-                <select id="col1Select" class="form-select"></select>
-                <select id="col2Select" class="form-select"></select>
-                <select id="col3Select" class="form-select"></select>
-                <select id="col4Select" class="form-select"></select>
-            </div>
-
-            <button class="btn btn-success w-100" id="executeMerge">REALIZAR CRUCE DE DATOS (LEFT JOIN)</button>
+        <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4">
+            <button class="btn btn-primary btn-lg" onclick="downloadFile(processedData, 'consolidado_procesado.csv', '|');" id="downloadAnexoBtn" style="display:none;">
+                Descargar Archivo Principal Limpio
+            </button>
+            <button class="btn btn-danger btn-lg" onclick="downloadFile(mergedData, 'resultado_cruce_final.csv', '|');" id="downloadMergeBtn" style="display:none;">
+                Descargar Resultado Final del Cruce
+            </button>
         </div>
         
-        <div id="mergeResult" class="hidden-preview"></div>
-
-        <button class="btn btn-lg btn-danger mt-3 mb-5" onclick="downloadFile(mergedData, 'resultado_cruce_final.csv', '|');" id="downloadMergeBtn" style="display:none;">
-            Descargar Resultado Final del Cruce
-        </button>
     </div>
     
-    <div id="pivotSection" class="step-divider" style="display:none;">
-        <div class="section-title text-info">3. Tabla Dinámica (Pivot) para Análisis</div>
-        
-        <p class="fw-bold">3.1 Configuración (Debe ser manual)</p>
-        <div class="row mb-4 bg-light p-3 rounded">
-            <div class="col-md-3">
-                <label for="pivotRowSelect" class="form-label fw-bold">Filas (Eje Y):</label>
-                <select id="pivotRowSelect" class="form-select"></select>
-            </div>
-            <div class="col-md-3">
-                <label for="pivotColSelect" class="form-label fw-bold">Columnas (Eje X):</label>
-                <select id="pivotColSelect" class="form-select"></select>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label fw-bold">Valores (Min 1, Max 3 Campos):</label>
-                <div class="row g-2">
-                    <div class="col-4"><select id="pivotVal1Select" class="form-select"><option value="">-- Valor 1 --</option></select></div>
-                    <div class="col-4"><select id="pivotVal2Select" class="form-select"><option value="">-- Valor 2 (Opcional) --</option></select></div>
-                    <div class="col-4"><select id="pivotVal3Select" class="form-select"><option value="">-- Valor 3 (Opcional) --</option></select></div>
-                </div>
-            </div>
-        </div>
-        
-        <button class="btn btn-info w-100 mb-4" id="executePivot">GENERAR TABLA DINÁMICA</button>
-
-        <h5 class="text-secondary">Resultado del Análisis Pivot</h5>
-        <div id="pivotTableContainer" class="data-table-container section-panel">
-            <div class="alert alert-info">Configure y genere el pivote para ver el resultado.</div>
-        </div>
-    </div>
+    <div id="pivotSection" class="hidden-preview"></div>
 
 </div>
 
@@ -117,14 +80,13 @@
     // Variables globales
     let consolidatedData = null; 
     let processedData = null;    // Archivo Principal (Resultado del Paso 1)
-    let dataFile2 = null;        // Archivo Secundario
+    let dataFile2 = null;        // Archivo Secundario (Cargado en el Paso 1 visual)
     let mergedData = null;       // Resultado del Cruce (Paso 2)
 
-    // Elementos del DOM (Simplificados, se mantienen para la lógica)
+    // Elementos del DOM
     const folderInput = document.getElementById('folderInput');
     const anexoStatus = document.getElementById('anexoStatus');
     const downloadAnexoBtn = document.getElementById('downloadAnexoBtn');
-    // Selectores ocultos (pero necesarios para la lógica interna)
     const docColSelect = document.getElementById('docColSelect'); 
     const secAggColSelect = document.getElementById('secAggColSelect'); 
     const minColSelect = document.getElementById('minColSelect');
@@ -135,23 +97,12 @@
     const dedupeStatus = document.getElementById('dedupeStatus');
     const file2Input = document.getElementById('file2Input');
     const file2Status = document.getElementById('file2Status');
-    // Selectores de Cruce ocultos
     const col1Select = document.getElementById('col1Select'); 
     const col2Select = document.getElementById('col2Select'); 
     const col3Select = document.getElementById('col3Select'); 
     const col4Select = document.getElementById('col4Select'); 
-    const executeMergeBtn = document.getElementById('executeMerge');
     const downloadMergeBtn = document.getElementById('downloadMergeBtn');
-    // Selectores Pivot visibles
-    const pivotSection = document.getElementById('pivotSection');
-    const pivotRowSelect = document.getElementById('pivotRowSelect');
-    const pivotColSelect = document.getElementById('pivotColSelect');
-    const pivotVal1Select = document.getElementById('pivotVal1Select');
-    const pivotVal2Select = document.getElementById('pivotVal2Select');
-    const pivotVal3Select = document.getElementById('pivotVal3Select');
-    const executePivotBtn = document.getElementById('executePivot');
-    const pivotTableContainer = document.getElementById('pivotTableContainer');
-
+    
     // --- Definición de Nombres de Columnas para Automatización ---
     const COL_DOC_PRIN = 'Numero Documento';
     const COL_MES_PRIN = 'Mes data';
@@ -164,126 +115,36 @@
 
     function parseFile(file, fastMode = false) {
         return new Promise((resolve, reject) => {
-            // OPTIMIZACIÓN DE MEMORIA: Usar fastMode para reducir sobrecarga
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 dynamicTyping: false,
                 delimiter: "", 
                 fastMode: fastMode, 
-                complete: (results) => {
-                    resolve(results);
-                },
-                error: (error) => {
-                    reject(error);
-                }
+                complete: (results) => resolve(results),
+                error: (error) => reject(error)
             });
         });
     }
 
-    /** Descarga los datos procesados a un archivo CSV. */
     function downloadFile(data, filename, delimiter) {
         if (!data) {
             alert('No hay datos disponibles para descargar.');
             return;
         }
-
         const finalData = Array.isArray(data) ? data : data.data;
-
-        const csv = Papa.unparse(finalData, {
-            quotes: false,
-            delimiter: delimiter, 
-            header: true
-        });
-
+        const csv = Papa.unparse(finalData, { delimiter: delimiter, header: true });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
-        
         link.setAttribute("href", url);
         link.setAttribute("download", filename);
         link.style.visibility = 'hidden';
-        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }
-
-    /** Rellena los selectores de columnas y precarga los valores deseados si existen. */
-    function populateSelectors(fields, selectors, presets = {}) {
-        selectors.forEach(select => {
-            // Para selectores Pivot, mantener las opciones iniciales
-            const initialHtml = (select.id.startsWith('pivotVal')) ? select.innerHTML : '';
-            select.innerHTML = initialHtml;
-            
-            // Para selectores NO Pivot, añadir la opción "Seleccione" solo si no es un selector oculto
-            if (!select.id.startsWith('pivot') && !select.parentElement.classList.contains('hidden-filters')) {
-                 select.innerHTML = '<option value="">-- Seleccione Columna --</option>';
-            }
-            
-            fields.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field;
-                option.textContent = field;
-                select.appendChild(option);
-            });
-            
-            const presetValue = presets[select.id];
-            if (presetValue && fields.includes(presetValue)) {
-                select.value = presetValue;
-            }
-        });
-    }
-
-    /** Rellena y auto-selecciona los selectores de Cruce (JOIN). */
-    function populateColumnSelectorsForMerge(fields1, fields2) {
-        const selectors1 = [col1Select, col3Select];
-        const selectors2 = [col2Select, col4Select];
-        
-        // 1. Set de valores para el Archivo Principal (Paso 1 - Selectores Ocultos)
-        selectors1.forEach(select => {
-            const isKey1 = (select.id === 'col1Select');
-            
-            select.innerHTML = '';
-            fields1.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field;
-                option.textContent = field;
-                select.appendChild(option);
-            });
-            
-            // Auto-selección
-            if (isKey1 && fields1.includes(COL_DOC_PRIN)) {
-                select.value = COL_DOC_PRIN;
-            } else if (!isKey1 && fields1.includes(COL_MES_PRIN)) {
-                select.value = COL_MES_PRIN;
-            }
-        });
-
-        // 2. Set de valores para el Archivo Secundario (Paso 2 - Selectores Ocultos)
-        selectors2.forEach(select => {
-            const isKey1 = (select.id === 'col2Select');
-            
-            select.innerHTML = '';
-            fields2.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field;
-                option.textContent = field;
-                select.appendChild(option);
-            });
-            
-            // Auto-selección
-            if (isKey1 && fields2.includes(COL_DOC_SEC)) {
-                select.value = COL_DOC_SEC;
-            } else if (!isKey1 && fields2.includes(COL_MES_SEC)) {
-                select.value = COL_MES_SEC;
-            } else if (isKey1 && fields2.includes(COL_DOC_PRIN)) {
-                select.value = COL_DOC_PRIN;
-            }
-        });
-    }
     
-    /** * Función auxiliar para parsear y normalizar una fecha. */
     const parseDate = (dateString) => {
         if (!dateString) return new Date(0); 
         let dateParts = dateString.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
@@ -299,7 +160,6 @@
         return new Date(0); 
     };
     
-    /** Función auxiliar para formatear una fecha Date a DD/MM/YYYY. */
     const formatDateToDDMMYYYY = (date) => {
         const d = new Date(date);
         const day = String(d.getDate()).padStart(2, '0');
@@ -308,30 +168,167 @@
         return `${day}/${month}/${year}`;
     };
 
-    // --- Lógica de Procesamiento Automático (La función que reemplaza el botón) ---
-    function executePreProcess() {
-        if (!consolidatedData) {
-            // Esto no debería suceder si se llama después de la carga
-            return; 
+    function populateSelectors(fields, selectors, presets = {}) {
+        selectors.forEach(select => {
+            select.innerHTML = '';
+            fields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                select.appendChild(option);
+            });
+            const presetValue = presets[select.id];
+            if (presetValue && fields.includes(presetValue)) {
+                select.value = presetValue;
+            }
+        });
+    }
+
+    function populateColumnSelectorsForMerge(fields1, fields2) {
+        const selectors1 = [col1Select, col3Select];
+        const selectors2 = [col2Select, col4Select];
+        
+        // 1. Archivo Principal (data1)
+        selectors1.forEach(select => {
+            const isKey1 = (select.id === 'col1Select');
+            select.innerHTML = '';
+            fields1.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                select.appendChild(option);
+            });
+            if (isKey1 && fields1.includes(COL_DOC_PRIN)) {
+                select.value = COL_DOC_PRIN;
+            } else if (!isKey1 && fields1.includes(COL_MES_PRIN)) {
+                select.value = COL_MES_PRIN;
+            }
+        });
+
+        // 2. Archivo Secundario (data2)
+        selectors2.forEach(select => {
+            const isKey1 = (select.id === 'col2Select');
+            select.innerHTML = '';
+            fields2.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                select.appendChild(option);
+            });
+            if (isKey1 && fields2.includes(COL_DOC_SEC)) {
+                select.value = COL_DOC_SEC;
+            } else if (!isKey1 && fields2.includes(COL_MES_SEC)) {
+                select.value = COL_MES_SEC;
+            } else if (isKey1 && fields2.includes(COL_DOC_PRIN)) {
+                select.value = COL_DOC_PRIN;
+            }
+        });
+    }
+
+    // --- FUNCIÓN DE CRUCE (Se llama al final) ---
+    function executeMerge() {
+        if (!processedData || !dataFile2) {
+            // Esto no debería pasar si se llama correctamente
+            return;
         }
 
+        // Obtener la configuración de las columnas clave (automáticamente asignadas)
+        const key1_A = col1Select.value; 
+        const key1_B = col2Select.value; 
+        const key2_A = col3Select.value; 
+        const key2_B = col4Select.value; 
+        
+        if (!key1_A || !key1_B) {
+            dedupeStatus.textContent = 'ERROR: No se pudo configurar el cruce. Revise los nombres de columnas clave.';
+            dedupeStatus.className = 'alert alert-danger py-1';
+            return;
+        }
+        const useKey2 = key2_A && key2_B;
+
+        dedupeStatus.textContent = '🚀 CRUCE DE DATOS AUTOMÁTICO EN CURSO... Por favor, espere.';
+        dedupeStatus.className = 'alert alert-warning py-1';
+        downloadMergeBtn.style.display = 'none'; 
+
+        setTimeout(() => {
+            
+            const data1 = processedData;
+            const data2 = dataFile2.data;
+            // Headers del archivo secundario que NO son la clave de cruce
+            const headers2 = dataFile2.meta.fields.filter(h => h !== key1_B && (!useKey2 || h !== key2_B));
+
+            // 1. Crear el mapa de búsqueda (data2)
+            const map2 = new Map();
+            data2.forEach(row => {
+                let keyValue = String(row[key1_B] || '').trim();
+                if (useKey2) keyValue += `|${String(row[key2_B] || '').trim()}`;
+                
+                if (keyValue) {
+                    const rowData = {};
+                    headers2.forEach(field => rowData[field] = row[field]);
+                    if (!map2.has(keyValue)) map2.set(keyValue, []);
+                    map2.get(keyValue).push(rowData);
+                }
+            });
+            
+            dataFile2 = null; 
+
+            // 2. Realizar el LEFT JOIN (data1)
+            const mergedResults = [];
+            
+            data1.forEach(row1 => {
+                let searchKey = String(row1[key1_A] || '').trim();
+                if (useKey2) searchKey += `|${String(row1[key2_A] || '').trim()}`;
+
+                const matchingRows2 = map2.has(searchKey) ? map2.get(searchKey) : [{}];
+                
+                matchingRows2.forEach(row2Data => {
+                    const newRow = { ...row1 }; 
+                    let isMatch = Object.keys(row2Data).length > 0;
+                    
+                    for (const field of headers2) {
+                        const newFieldName = Object.prototype.hasOwnProperty.call(newRow, field) ? `${field}_Arch2` : field;
+                        newRow[newFieldName] = isMatch ? row2Data[field] : ''; 
+                    }
+                    mergedResults.push(newRow);
+                });
+            });
+
+            mergedData = mergedResults;
+            
+            if (mergedData.length > 0) {
+                dedupeStatus.textContent = `✅ **PROCESO FINALIZADO**. El resultado tiene **${mergedData.length}** filas. Descargue los archivos.`;
+                dedupeStatus.className = 'alert alert-success py-1';
+                downloadMergeBtn.style.display = 'block'; 
+            } else {
+                dedupeStatus.textContent = `⚠️ Error: El cruce no generó resultados válidos.`;
+                dedupeStatus.className = 'alert alert-danger py-1';
+            }
+            
+            // Liberar memoria
+            processedData = null;
+
+        }, 50); 
+    }
+
+    // --- FUNCIÓN DE PROCESAMIENTO INICIAL (Paso 1) ---
+    function executePreProcess() {
+        if (!consolidatedData) return; 
+
         // 1. Mostrar estado de procesamiento
-        dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación...`;
+        dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de la data principal...`;
         dedupeStatus.className = 'alert alert-warning py-1';
         dedupeStatus.style.display = 'block';
         downloadAnexoBtn.style.display = 'none';
+        downloadMergeBtn.style.display = 'none';
 
-        // Usamos setTimeout para permitir que la UI se actualice antes de empezar
         setTimeout(() => {
-            
-            // Leer los valores de los selectores (que están ocultos pero configurados automáticamente)
             const docCol = docColSelect.value;
             const secAggCol = secAggColSelect.value; 
             const minDateCol = minColSelect.value; 
             const maxDateCol = maxColSelect.value; 
 
             if (!docCol || !secAggCol || !minDateCol || !maxDateCol) {
-                 dedupeStatus.textContent = '❌ Error de Configuración: Las columnas clave AUTOMÁTICAS no se encontraron. Verifique los nombres de las columnas en sus archivos.';
+                 dedupeStatus.textContent = '❌ Error de Configuración: Las columnas clave del Consolidado no se encontraron.';
                  dedupeStatus.className = 'alert alert-danger py-1';
                  return;
             }
@@ -341,36 +338,24 @@
             const yesterday = new Date(today);
             yesterday.setDate(today.getDate() - 1);
             const formattedYesterday = formatDateToDDMMYYYY(yesterday);
-            
             const aggregatedMap = new Map();
             
             // --- AGRUPACIÓN Y AGREGACIÓN ---
             consolidatedData.forEach(row => {
                 const docValue = String(row[docCol] || '').trim();
                 const secAggValue = String(row[secAggCol] || '').trim(); 
-                
                 if (!docValue || !secAggValue) return; 
-
                 const groupKey = `${docValue}|${secAggValue}`;
                 
                 const minDateValue = parseDate(row[minDateCol]);
                 const maxDateValue = parseDate(row[maxDateCol]);
-
                 if (isNaN(minDateValue.getTime()) || isNaN(maxDateValue.getTime())) return; 
                 
                 if (!aggregatedMap.has(groupKey)) {
-                    aggregatedMap.set(groupKey, {
-                        minDate: minDateValue,
-                        maxDate: maxDateValue,
-                        latestRow: {...row} 
-                    });
+                    aggregatedMap.set(groupKey, { minDate: minDateValue, maxDate: maxDateValue, latestRow: {...row} });
                 } else {
                     const data = aggregatedMap.get(groupKey);
-                    
-                    if (minDateValue.getTime() < data.minDate.getTime()) {
-                        data.minDate = minDateValue;
-                    }
-                    
+                    if (minDateValue.getTime() < data.minDate.getTime()) data.minDate = minDateValue;
                     if (maxDateValue.getTime() >= data.maxDate.getTime()) {
                         data.maxDate = maxDateValue;
                         data.latestRow = {...row}; 
@@ -379,17 +364,12 @@
             });
             
             let finalData = [];
-            
-            // --- APLICAR FECHAS Y ESTADO ---
             for (const data of aggregatedMap.values()) { 
                 const finalRow = data.latestRow;
-                
                 const salidaDateStr = formatDateToDDMMYYYY(data.maxDate);
                 finalRow['Ingreso'] = formatDateToDDMMYYYY(data.minDate);
                 finalRow['Salida'] = salidaDateStr;
-                
                 finalRow['Estado Real'] = (salidaDateStr === formattedYesterday) ? 'ACTIVO' : 'INACTIVO';
-                
                 finalData.push(finalRow);
             }
             
@@ -411,37 +391,76 @@
             
             processedData = finalData; 
             const finalRowCount = processedData.length;
-            
-            // Liberar memoria de la data consolidada
             consolidatedData = null; 
             
             // Actualizar UI
-            dedupeStatus.textContent = `✅ Limpieza y Agregación **Completada** automáticamente. Filas finales: ${finalRowCount}.`;
+            dedupeStatus.textContent = `✅ Limpieza de data principal completada. Filas finales: ${finalRowCount}.`;
             dedupeStatus.className = 'alert alert-success py-1';
-
             downloadAnexoBtn.style.display = 'block';
             
             // Preparar selectores para el Paso 2
             if (processedData.length > 0) {
                 const consolidatedHeaders = Object.keys(processedData[0]);
-                populateColumnSelectorsForMerge(consolidatedHeaders, []); 
+                
+                // Si el archivo secundario ya está cargado, ¡ejecutar el cruce de inmediato!
+                if (dataFile2) {
+                    const fields2 = dataFile2.meta.fields;
+                    populateColumnSelectorsForMerge(consolidatedHeaders, fields2);
+                    executeMerge();
+                } else {
+                    // Si no, solo actualizamos el selector por si se carga después
+                    populateColumnSelectorsForMerge(consolidatedHeaders, []);
+                }
+            }
+
+        }, 50);
+    }
+    
+    // --- EVENTOS DE CARGA (Orden Invertido) ---
+
+    // Evento 1: Carga de Archivo Secundario
+    file2Input.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        file2Status.textContent = `Analizando archivo secundario ${file.name}...`;
+
+        try {
+            const data = await parseFile(file, true); 
+            const headers2 = data.meta.fields;
+            let rawData2 = data.data;
+            
+            // Transformación a string para las claves de cruce
+            if (rawData2.length > 0) {
+                const transformedData2 = rawData2.map(row => {
+                    const newRow = { ...row };
+                    if (headers2.includes(COL_DOC_SEC) && row[COL_DOC_SEC] !== undefined) newRow[COL_DOC_SEC] = String(row[COL_DOC_SEC]);
+                    if (headers2.includes(COL_MES_SEC) && row[COL_MES_SEC] !== undefined) newRow[COL_MES_SEC] = String(row[COL_MES_SEC]);
+                    return newRow;
+                });
+                dataFile2 = { data: transformedData2, meta: data.meta }; 
+            } else {
+                dataFile2 = data;
             }
             
-            // Resetear Paso 2 y 3 (por si se recarga el archivo principal)
-            mergedData = null;
-            pivotSection.style.display = 'none';
-            downloadMergeBtn.style.display = 'none';
-            dataFile2 = null; 
-            document.getElementById('mergeResult').innerHTML = '';
-            file2Input.value = '';
-            file2Status.textContent = 'Cargue un archivo secundario...';
-            file2Status.className = 'alert alert-info py-1';
+            file2Status.textContent = `✅ Archivo secundario cargado y listo. Fila: ${dataFile2.data.length}. Ahora cargue la carpeta principal.`;
+            file2Status.className = 'alert alert-success py-1';
+            
+            // Si el Archivo Principal ya está procesado (se cargó antes por error), ejecutar el cruce
+            if (processedData) {
+                const fields1 = Object.keys(processedData[0]);
+                populateColumnSelectorsForMerge(fields1, headers2);
+                executeMerge();
+            }
+            
+        } catch (error) {
+            file2Status.className = 'alert alert-danger py-1';
+            file2Status.textContent = `Error al cargar: ${error.message}`;
+            dataFile2 = null;
+        }
+    });
 
-        }, 50); // Pequeño retraso para actualizar UI
-    }
-
-    // --- PASO 1: Lógica de Carga y Consolidación (Ahora llama a executePreProcess) ---
-
+    // Evento 2: Carga de Carpeta Principal
     folderInput.addEventListener('change', async (event) => {
         const files = event.target.files;
         if (files.length === 0) return;
@@ -453,15 +472,14 @@
         let fileCount = 0;
         let headers = new Set();
         
-        pivotSection.style.display = 'none';
-        
+        // Resetear descargas anteriores
+        downloadMergeBtn.style.display = 'none';
+
         for (const file of files) {
             if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) continue;
-
             try {
                 const results = await parseFile(file, true); 
                 
-                // Extracción de Mes y Año del Nombre del Archivo
                 const match = file.name.match(/(\d{2}[-.]\d{2}[-.]\d{4})/); 
                 let formattedDate = '01/01/1900'; 
                 let month = '01';
@@ -477,9 +495,7 @@
                         year = parts[3];
                     }
                 }
-                
-                const monthInt = parseInt(month, 10);
-                const monthFinal = monthInt.toString(); 
+                const monthFinal = parseInt(month, 10).toString(); 
 
                 const processedRows = results.data.map(row => {
                     const newRow = {...row};
@@ -500,24 +516,20 @@
         
         if (allData.length > 0) {
             consolidatedData = allData; 
-            anexoStatus.textContent = `¡Consolidación de archivos exitosa! ${fileCount} archivos cargados. Iniciando limpieza automática...`;
+            anexoStatus.textContent = `¡Consolidación de archivos exitosa! ${fileCount} archivos cargados. Iniciando limpieza...`;
             anexoStatus.className = 'alert alert-info py-1';
             
-            // CONFIGURACIÓN AUTOMÁTICA PASO 1 (Asigna al SELECT oculto)
+            // Configurar Selectores Ocultos
             const headersArray = Array.from(headers);
             const presets = {
-                'docColSelect': COL_DOC_PRIN,
-                'secAggColSelect': COL_MES_PRIN,
-                'minColSelect': COL_FECHA_PRIN, 
-                'maxColSelect': COL_FECHA_PRIN, 
-                'dupCol1Select': COL_DOC_PRIN,
-                'dupCol2Select': COL_MES_PRIN,
-                'dupCol3Select': COL_ANIO_PRIN
+                'docColSelect': COL_DOC_PRIN, 'secAggColSelect': COL_MES_PRIN,
+                'minColSelect': COL_FECHA_PRIN, 'maxColSelect': COL_FECHA_PRIN, 
+                'dupCol1Select': COL_DOC_PRIN, 'dupCol2Select': COL_MES_PRIN, 'dupCol3Select': COL_ANIO_PRIN
             };
             const preProcessSelectors = [docColSelect, secAggColSelect, minColSelect, maxColSelect, dupCol1Select, dupCol2Select, dupCol3Select];
             populateSelectors(headersArray, preProcessSelectors, presets);
             
-            // *** LLAMADA AUTOMÁTICA AL PROCESAMIENTO ***
+            // *** LLAMADA AUTOMÁTICA AL PROCESAMIENTO (Limpieza y luego Cruce) ***
             executePreProcess();
 
         } else {
@@ -525,275 +537,6 @@
             anexoStatus.className = 'alert alert-danger py-1';
             downloadAnexoBtn.style.display = 'none';
         }
-    });
-
-    // --- PASO 2: Lógica de Cruce (LEFT JOIN) ---
-
-    file2Input.addEventListener('change', async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        file2Status.textContent = `Analizando archivo ${file.name}...`;
-
-        try {
-            // OPTIMIZACIÓN DE MEMORIA: Usar fastMode = true para cargar rápido y ahorrar memoria
-            const data = await parseFile(file, true); 
-            let rawData2 = data.data;
-            const headers2 = data.meta.fields;
-            
-            // Transformación de formatos (numéricos a string)
-            if (rawData2.length > 0) {
-                const transformedData2 = rawData2.map(row => {
-                    const newRow = { ...row };
-                    if (headers2.includes(COL_DOC_SEC) && row[COL_DOC_SEC] !== undefined) {
-                         newRow[COL_DOC_SEC] = String(row[COL_DOC_SEC]);
-                    }
-                    if (headers2.includes(COL_MES_SEC) && row[COL_MES_SEC] !== undefined) {
-                         newRow[COL_MES_SEC] = String(row[COL_MES_SEC]);
-                    }
-                    return newRow;
-                });
-                dataFile2 = { data: transformedData2, meta: data.meta }; 
-            } else {
-                dataFile2 = data;
-            }
-            
-            file2Status.className = 'alert alert-success py-1';
-            file2Status.textContent = `Archivo cargado y transformado: ${file.name}. ${dataFile2.data.length} filas. Presione REALIZAR CRUCE.`;
-            
-            if (processedData && processedData.length > 0 && dataFile2) {
-                const fields1 = Object.keys(processedData[0]);
-                const fields2 = dataFile2.meta.fields;
-                // Configurar los selectores ocultos con la data cargada
-                populateColumnSelectorsForMerge(fields1, fields2);
-            } else if (!processedData) {
-                file2Status.textContent = 'Error: El Archivo Principal aún no ha sido procesado (Paso 1).';
-                file2Status.className = 'alert alert-danger py-1';
-                dataFile2 = null;
-            }
-            
-        } catch (error) {
-            file2Status.className = 'alert alert-danger py-1';
-            file2Status.textContent = `Error al cargar: ${error.message}`;
-            dataFile2 = null;
-        }
-    });
-
-    executeMergeBtn.addEventListener('click', () => {
-        if (!processedData || !dataFile2) {
-            alert('Asegúrese de haber completado el Paso 1 y cargado el Archivo Secundario.');
-            return;
-        }
-        
-        // Leer los valores de los selectores (que están ocultos pero configurados automáticamente)
-        const key1_A = col1Select.value; 
-        const key1_B = col2Select.value; 
-        const key2_A = col3Select.value; 
-        const key2_B = col4Select.value; 
-        
-        if (!key1_A || !key1_B) {
-            alert('Error: Las columnas clave AUTOMÁTICAS para el cruce no se encontraron o asignaron.');
-            return;
-        }
-        const useKey2 = key2_A && key2_B;
-
-        // Indicador de procesamiento
-        document.getElementById('mergeResult').insertAdjacentHTML('afterbegin', '<div class="alert alert-info" id="mergeStatus">Realizando cruce (LEFT JOIN)... Esto puede tardar varios minutos. Por favor, espere.</div>');
-        downloadMergeBtn.style.display = 'none'; 
-
-        // Ejecutar el cruce con un pequeño retraso para que la UI se actualice
-        setTimeout(() => {
-            
-            const data1 = processedData;
-            const data2 = dataFile2.data;
-            const headers2 = dataFile2.meta.fields.filter(h => h !== key1_B && (!useKey2 || h !== key2_B));
-
-            // 1. Crear el mapa de búsqueda del Archivo Secundario (data2)
-            const map2 = new Map();
-            data2.forEach(row => {
-                let keyValue = String(row[key1_B] || '').trim();
-                if (useKey2) {
-                    keyValue += `|${String(row[key2_B] || '').trim()}`;
-                }
-                
-                if (keyValue) {
-                    const rowData = {};
-                    headers2.forEach(field => {
-                        rowData[field] = row[field];
-                    });
-                    
-                    if (!map2.has(keyValue)) map2.set(keyValue, []);
-                    map2.get(keyValue).push(rowData);
-                }
-            });
-            
-            // Liberar memoria del archivo secundario completo
-            dataFile2 = null; 
-
-            // 2. Realizar el LEFT JOIN sobre el Archivo Principal (data1)
-            const mergedResults = [];
-            let uniqueMatches = new Set(); 
-            
-            data1.forEach(row1 => {
-                let searchKey = String(row1[key1_A] || '').trim();
-                if (useKey2) {
-                    searchKey += `|${String(row1[key2_A] || '').trim()}`;
-                }
-
-                const matchingRows2 = map2.has(searchKey) ? map2.get(searchKey) : [{ /* Fila vacía */ }];
-                
-                matchingRows2.forEach(row2Data => {
-                    const newRow = { ...row1 }; 
-                    let isMatch = Object.keys(row2Data).length > 0;
-
-                    if (isMatch) {
-                        uniqueMatches.add(searchKey);
-                    }
-                    
-                    for (const field of headers2) {
-                        const newFieldName = Object.prototype.hasOwnProperty.call(newRow, field) 
-                            ? `${field}_Arch2` 
-                            : field;
-                        
-                        newRow[newFieldName] = isMatch ? row2Data[field] : ''; 
-                    }
-                    mergedResults.push(newRow);
-                });
-            });
-
-            mergedData = mergedResults;
-            
-            document.getElementById('mergeStatus')?.remove(); 
-
-            if (mergedData.length > 0) {
-                const principalRowCount = processedData ? processedData.length : 0;
-                
-                document.getElementById('mergeResult').insertAdjacentHTML('afterbegin', `<div class="alert alert-success mt-3">✅ ¡Cruce (LEFT JOIN) completado! Se mantuvieron **${principalRowCount}** filas principales, generando **${mergedData.length}** filas totales. Coincidencias Únicas encontradas: **${uniqueMatches.size}**.</div>`);
-                
-                downloadMergeBtn.style.display = 'block'; 
-                
-                // HABILITAR Y CARGAR PIVOT SECTION
-                const allHeaders = Object.keys(mergedData[0]);
-                const pivotSelectors = [pivotRowSelect, pivotColSelect, pivotVal1Select, pivotVal2Select, pivotVal3Select];
-                populateSelectors(allHeaders, pivotSelectors);
-                pivotSection.style.display = 'block';
-
-            } else {
-                document.getElementById('mergeResult').insertAdjacentHTML('afterbegin', `<div class="alert alert-warning mt-3">⚠️ Error: El cruce no generó resultados.</div>`);
-                pivotSection.style.display = 'none';
-            }
-        }, 50); 
-    });
-    
-    // --- PASO 3: Lógica de la Tabla Dinámica (Pivot) ---
-
-    executePivotBtn.addEventListener('click', () => {
-        if (!mergedData || mergedData.length === 0) {
-            alert('Debe ejecutar el Cruce (Paso 2) primero.');
-            return;
-        }
-
-        const rowKey = pivotRowSelect.value;
-        const colKey = pivotColSelect.value;
-        const valKeys = [pivotVal1Select.value, pivotVal2Select.value, pivotVal3Select.value].filter(v => v);
-
-        if (!rowKey || !colKey || valKeys.length === 0) {
-            alert('Debe seleccionar la Columna de Filas, la Columna de Encabezados y al menos 1 campo de Valor.');
-            return;
-        }
-        
-        const pivotMap = new Map();
-
-        mergedData.forEach(row => {
-            const rowValue = String(row[rowKey] || 'N/A').trim();
-            const colValue = String(row[colKey] || 'N/A').trim();
-            const mapKey = `${rowValue}|${colValue}`;
-
-            if (!pivotMap.has(mapKey)) {
-                pivotMap.set(mapKey, { count: 0 });
-                valKeys.forEach(k => {
-                    pivotMap.get(mapKey)[`sum_${k}`] = 0; 
-                });
-            }
-
-            const data = pivotMap.get(mapKey);
-            data.count++;
-            
-            valKeys.forEach(k => {
-                const numericValue = parseFloat(String(row[k]).replace(/[^0-9.-]/g, '')) || 0;
-                data[`sum_${k}`] += numericValue; 
-            });
-        });
-
-        const uniqueRows = new Set();
-        const uniqueCols = new Set();
-        pivotMap.forEach((_, key) => {
-            const [r, c] = key.split('|');
-            uniqueRows.add(r);
-            uniqueCols.add(c);
-        });
-        
-        const sortedRows = Array.from(uniqueRows).sort();
-        const sortedCols = Array.from(uniqueCols).sort();
-        
-        pivotTableContainer.innerHTML = '';
-        const table = document.createElement('table');
-        table.className = 'table table-striped table-bordered table-hover';
-        const thead = table.createTHead();
-        const tbody = table.createTBody();
-
-        const headerRow1 = thead.insertRow();
-        headerRow1.insertCell().textContent = rowKey;
-        headerRow1.cells[0].rowSpan = 2; 
-        
-        sortedCols.forEach(colVal => {
-            const th = headerRow1.insertCell();
-            th.textContent = colVal;
-            th.colSpan = valKeys.length + 1; 
-        });
-        
-        const headerRow2 = thead.insertRow();
-        sortedCols.forEach(() => {
-            const countTh = headerRow2.insertCell();
-            countTh.textContent = 'COUNT';
-            countTh.classList.add('table-secondary', 'fw-bold');
-            valKeys.forEach(k => {
-                const sumTh = headerRow2.insertCell();
-                sumTh.textContent = k.toUpperCase();
-                sumTh.classList.add('table-secondary', 'fw-bold');
-            });
-        });
-        
-        sortedRows.forEach(rowVal => {
-            const tr = tbody.insertRow();
-            tr.insertCell().textContent = rowVal; 
-
-            sortedCols.forEach(colVal => {
-                const mapKey = `${rowVal}|${colVal}`;
-                const data = pivotMap.get(mapKey);
-
-                const countCell = tr.insertCell();
-                const countValue = data ? data.count : 0;
-                countCell.textContent = countValue.toLocaleString();
-                countCell.classList.add('text-center');
-
-                valKeys.forEach(k => {
-                    const sumCell = tr.insertCell();
-                    const sumValue = data ? data[`sum_${k}`] : 0;
-                    sumCell.textContent = sumValue.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); 
-                    sumCell.style.textAlign = 'right';
-                });
-            });
-        });
-
-        pivotTableContainer.appendChild(table);
-    });
-
-    // --- Inicialización ---
-    document.addEventListener('DOMContentLoaded', function() {
-        pivotVal1Select.value = "";
-        pivotVal2Select.value = "";
-        pivotVal3Select.value = "";
     });
 
 </script>
