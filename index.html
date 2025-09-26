@@ -196,49 +196,23 @@
         return `${day}/${month}/${year}`;
     };
 
-    // Función modificada para obtener el valor entero de Valor Pagado
+    /**
+     * FUNCIÓN CORREGIDA: Extrae el valor entero de la izquierda hasta el primer punto (.).
+     * Evita cualquier limpieza o validación adicional que pudiera causar errores.
+     */
     function getIntegerValue(value) {
         if (value === null || value === undefined) return 0;
         let strValue = String(value).trim();
         
-        // 1. Limpiar separadores de miles
-        // NOTA: Asumimos que el separador decimal es el que ocurre primero (o es un punto/coma)
+        // 1. Buscar el índice del primer punto decimal
+        const splitIndex = strValue.indexOf('.');
         
-        // Si hay una coma y un punto, asumimos que uno es de miles y otro decimal. Intentamos priorizar el punto/coma como decimal.
+        // 2. Extraer la parte entera
+        let integerPart = (splitIndex !== -1) ? strValue.substring(0, splitIndex) : strValue;
         
-        // Eliminar puntos/comas que no sean decimales (asumiendo formato E.MMM,DD o E,MMM.DD)
-        if (strValue.includes('.') && strValue.includes(',')) {
-            // Caso típico: 1.234,56 (coma decimal) o 1,234.56 (punto decimal)
-            // Simplificamos: eliminamos el que aparece primero, o el punto si la coma es el último separador.
-            if (strValue.lastIndexOf(',') > strValue.lastIndexOf('.')) {
-                 strValue = strValue.replace(/\./g, ''); // Eliminar puntos (separador de miles)
-            } else {
-                 strValue = strValue.replace(/,/g, ''); // Eliminar comas (separador de miles)
-            }
-        }
-        
-        // 2. Encontrar el separador decimal final (punto o coma)
-        const decimalIndexComma = strValue.indexOf(',');
-        const decimalIndexDot = strValue.indexOf('.');
-        
-        let splitIndex = -1;
-        if (decimalIndexComma !== -1 && decimalIndexDot !== -1) {
-             // Si ambos existen, tomamos el que aparezca primero como separador decimal
-            splitIndex = Math.min(decimalIndexComma, decimalIndexDot);
-        } else if (decimalIndexComma !== -1) {
-            splitIndex = decimalIndexComma;
-        } else if (decimalIndexDot !== -1) {
-            splitIndex = decimalIndexDot;
-        }
-        
-        let integerPart = strValue;
-        if (splitIndex !== -1) {
-            // Extraer solo la parte entera
-            integerPart = strValue.substring(0, splitIndex);
-        }
-        
-        // 3. Limpiar cualquier separador restante y parsear a entero
-        integerPart = integerPart.replace(/[^0-9-]/g, ''); // Eliminar cualquier caracter no numérico (excepto el signo)
+        // 3. Limpiar cualquier caracter no numérico (excepto el signo) y convertir a entero.
+        // Esto maneja comas o puntos de miles que aún puedan existir.
+        integerPart = integerPart.replace(/[^0-9-]/g, ''); 
         return parseInt(integerPart, 10) || 0;
     }
 
@@ -406,7 +380,7 @@
         const aggregatedMap = new Map();
 
         allData.forEach(row => {
-            // **MODIFICACIÓN CLAVE AQUÍ:** Usamos la nueva función getIntegerValue
+            // **USO DE LA FUNCIÓN SIMPLIFICADA**
             const valorPagadoEntero = getIntegerValue(row[COL_VALOR_PAGADO_RAW]);
             
             const docValue = String(row[COL_DOC_PAGOS] || '').trim();
@@ -425,7 +399,7 @@
                     [COL_DOC_PAGOS]: docValue,
                     [COL_MES_PAGOS]: mes,
                     [COL_FECHA_MOV]: fechaMov, 
-                    [COL_VALOR_PAGADO]: valorPagadoEntero, // INICIALIZACIÓN con el entero
+                    [COL_VALOR_PAGADO]: valorPagadoEntero, 
                 });
             } else {
                 const data = aggregatedMap.get(groupKey);
@@ -485,7 +459,7 @@
             const formattedYesterday = formatDateToDDMMYYYY(yesterday);
             const aggregatedMap = new Map();
             
-            // Lógica de Agregación y Limpieza... (igual que en versiones anteriores)
+            // --- AGRUPACIÓN Y AGREGACIÓN ---
             dataFileAsignaciones.forEach(row => {
                 const docValue = String(row[docCol] || '').trim();
                 const secAggValue = String(row[secAggCol] || '').trim(); 
@@ -493,7 +467,7 @@
                 const groupKey = `${docValue}|${secAggValue}`;
                 
                 const minDateValue = parseDate(row[minDateCol]);
-                const maxDateValue = parseDate(row[maxDateCol]);
+                const maxDateValue = parseDate(row[maxColSelect.value]); // Usamos maxColSelect.value para mantener la consistencia
                 if (isNaN(minDateValue.getTime()) || isNaN(maxDateValue.getTime())) return; 
                 
                 if (!aggregatedMap.has(groupKey)) {
