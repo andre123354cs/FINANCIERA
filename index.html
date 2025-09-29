@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROCESOS YESBPO | Procesamiento Robusto por Lotes</title>
+    <title>PROCESOS YESBPO | Procesamiento Robusto y Visual</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -13,26 +13,9 @@
         .step-divider { border-top: 4px solid #0d6efd; margin-top: 30px; margin-bottom: 30px; padding-top: 15px; }
         h1 { color: #0d6efd; font-weight: 700; margin-bottom: 30px; }
         .section-title { font-size: 1.5rem; color: #495057; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
-        /* Estilos para los botones de navegación (Módulos) */
-        .module-nav button {
-            transition: all 0.3s ease;
-            font-weight: 600;
-            font-size: 1.1rem;
-            border-radius: 0.5rem;
-            border: 2px solid #0d6efd;
-            background-color: #ffffff;
-            color: #0d6efd;
-        }
-        .module-nav button.active {
-            background-color: #0d6efd;
-            color: #ffffff;
-            box-shadow: 0 4px 8px rgba(13, 110, 253, 0.5);
-        }
-        .module-nav button:hover:not(.active) {
-            background-color: #e9f0ff;
-            color: #0b5ed7;
-        }
-        /* Clases para ocultar elementos de configuración y filtros */
+        .module-nav button { transition: all 0.3s ease; font-weight: 600; font-size: 1.1rem; border-radius: 0.5rem; border: 2px solid #0d6efd; background-color: #ffffff; color: #0d6efd; }
+        .module-nav button.active { background-color: #0d6efd; color: #ffffff; box-shadow: 0 4px 8px rgba(13, 110, 253, 0.5); }
+        .module-nav button:hover:not(.active) { background-color: #e9f0ff; color: #0b5ed7; }
         .hidden-preview { display: none !important; }
         .hidden-filters select, .hidden-filters button { display: none !important; } 
         .footer { padding: 15px 0; background-color: #e9ecef; color: #6c757d; text-align: center; margin-top: 20px; font-size: 0.85rem; }
@@ -68,6 +51,9 @@
                 
                 <div class="alert alert-light mt-2 py-1" id="pagosProcessStatus" style="display:none;"></div>
                 
+                <div class="progress mb-2" id="pagosProgressBarContainer" style="height: 25px; display: none;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="pagosProgressBar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
                 <div class="hidden-filters">
                     <select id="col1Select" class="form-select"></select>
                     <select id="col2Select" class="form-select"></select>
@@ -87,7 +73,10 @@
                 <p class="fw-bold mt-4">2.2 Proceso Automático (Limpieza y Cruce)</p>
                 
                 <div class="alert alert-light mt-2 py-1" id="dedupeStatus" style="display:none;"></div>
-                
+
+                <div class="progress mb-2" id="asignacionesProgressBarContainer" style="height: 25px; display: none;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" id="asignacionesProgressBar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
                 <div id="preProcessConfig" class="hidden-filters">
                     <select id="docColSelect" class="form-select"></select>
                     <select id="secAggColSelect" class="form-select"></select>
@@ -139,10 +128,7 @@
     // --- VARIABLES DE CONFIGURACIÓN Y CONSTANTES ---
     // ----------------------------------------------------------------------
     
-    // **NUEVA VARIABLE CLAVE: TAMAÑO DEL LOTE**
-    // Controla cuántos archivos (o Web Workers) se ejecutan a la vez.
-    // Reducir este número si aún hay problemas de saturación.
-    const FILE_BATCH_SIZE = 20; 
+    const FILE_BATCH_SIZE = 10; 
     
     let db;                     
     const CACHE_KEY_PAGOS = 'processedPagosData';
@@ -151,7 +137,6 @@
     let processedDataAsignaciones = null; 
     let mergedData = null;       
 
-    // Elementos del DOM (omitted for brevity)
     const folderInput = document.getElementById('folderInput');
     const anexoStatus = document.getElementById('anexoStatus');
     const dedupeStatus = document.getElementById('dedupeStatus');
@@ -159,6 +144,12 @@
     const pagosFolderInput = document.getElementById('pagosFolderInput');
     const pagosStatus = document.getElementById('pagosStatus');
     const pagosProcessStatus = document.getElementById('pagosProcessStatus');
+    
+    // Referencias a las Barras de Progreso
+    const pagosProgressBar = document.getElementById('pagosProgressBar');
+    const pagosProgressBarContainer = document.getElementById('pagosProgressBarContainer');
+    const asignacionesProgressBar = document.getElementById('asignacionesProgressBar');
+    const asignacionesProgressBarContainer = document.getElementById('asignacionesProgressBarContainer');
     
     let totalRowsCount = 0; 
     let processedRowsCount = 0; 
@@ -177,10 +168,9 @@
     const COL_FECHA_MOV = 'Fecha Movimiento'; 
 
     // ----------------------------------------------------------------------
-    // --- IndexedDB y Utilidades (Mantienen funcionalidad) ---
+    // --- IndexedDB y Utilidades (Se mantiene) ---
     // ----------------------------------------------------------------------
-
-    function initDB() { /* ... (Mantener la función de IndexedDB) ... */
+    function initDB() { /* ... */
         return new Promise((resolve, reject) => {
             if (!window.indexedDB) { console.warn('IndexedDB no soportado. Caché deshabilitado.'); return resolve(null); }
             const request = window.indexedDB.open("ComfamaCacheDB", 1);
@@ -193,7 +183,7 @@
         });
     }
 
-    function saveDataToCache(key, data) { /* ... (Mantener la función de IndexedDB) ... */
+    function saveDataToCache(key, data) { /* ... */
         if (!db) return Promise.resolve();
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(['dataStore'], 'readwrite');
@@ -205,7 +195,7 @@
         });
     }
 
-    function loadDataFromCache(key) { /* ... (Mantener la función de IndexedDB) ... */
+    function loadDataFromCache(key) { /* ... */
         if (!db) return Promise.resolve(null);
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(['dataStore'], 'readonly');
@@ -229,12 +219,7 @@
     }
 
     async function loadCacheOnStart() {
-        try {
-            await initDB();
-            await loadDataFromCache(CACHE_KEY_PAGOS);
-        } catch (e) {
-            console.error('Fallo grave al inicializar la base de datos de caché.', e);
-        }
+        try { await initDB(); await loadDataFromCache(CACHE_KEY_PAGOS); } catch (e) { console.error('Fallo grave al inicializar la base de datos de caché.', e); }
     }
     
     function determineDelimiter(fileChunk) {
@@ -243,7 +228,7 @@
         return ',';
     }
 
-    function downloadFile(data, filename, delimiter) { /* ... (Mantener la función de descarga) ... */
+    function downloadFile(data, filename, delimiter) { /* ... */
         if (!data) { alert('No hay datos disponibles para descargar.'); return; }
         const finalData = Array.isArray(data) ? data : data.data;
         const csv = Papa.unparse(finalData, { delimiter: delimiter, header: true });
@@ -258,7 +243,7 @@
         document.body.removeChild(link);
     }
     
-    const parseDate = (dateString) => { /* ... (Mantener la función de parseo de fecha) ... */
+    const parseDate = (dateString) => { /* ... */
         if (!dateString) return new Date(0); 
         let dateParts = dateString.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
         if (dateParts) {
@@ -273,7 +258,7 @@
         return new Date(0); 
     };
     
-    const formatDateToDDMMYYYY = (date) => { /* ... (Mantener la función de formateo de fecha) ... */
+    const formatDateToDDMMYYYY = (date) => { /* ... */
         const d = new Date(date);
         const day = String(d.getDate()).padStart(2, '0');
         const month = String(d.getMonth() + 1).padStart(2, '0'); 
@@ -281,7 +266,7 @@
         return `${day}/${month}/${year}`;
     };
 
-    function getIntegerValue(value) { /* ... (Mantener la función de valor entero) ... */
+    function getIntegerValue(value) { /* ... */
         if (value === null || value === undefined) return 0;
         let strValue = String(value).trim();
         const splitIndex = strValue.indexOf('.');
@@ -289,22 +274,29 @@
         integerPart = integerPart.replace(/[^0-9-]/g, ''); 
         return parseInt(integerPart, 10) || 0;
     }
+    
+    // NUEVA FUNCIÓN PARA ACTUALIZAR LA BARRA DE PROGRESO
+    function updateProgressBar(progressBarElement, containerElement, filesProcessed, totalFiles) {
+        const percentage = Math.round((filesProcessed / totalFiles) * 100);
+        progressBarElement.style.width = percentage + '%';
+        progressBarElement.setAttribute('aria-valuenow', percentage);
+        progressBarElement.textContent = `${percentage}% Completado (${filesProcessed}/${totalFiles})`;
+        containerElement.style.display = 'flex'; // Mostrar la barra
+    }
 
     // ----------------------------------------------------------------------
-    // --- Lógica del Cruce (Mantiene funcionalidad) ---
+    // --- Lógica del Cruce (Se mantiene optimizada) ---
     // ----------------------------------------------------------------------
 
     function executeMerge() {
-        if (!processedDataAsignaciones || !dataFilePagos) {
-            return;
-        }
-        // ... (Se mantiene la lógica de cruce de la versión anterior) ...
+        if (!processedDataAsignaciones || !dataFilePagos) { return; }
+
         const key1_A = COL_DOC_PRIN;
         const key1_B = COL_DOC_PAGOS;
         const key2_A = COL_MES_PRIN;
         const key2_B = COL_MES_PAGOS;
         
-        dedupeStatus.textContent = '🚀 CRUCE DE DATOS AUTOMÁTICO EN CURSO... Por favor, espere.';
+        dedupeStatus.textContent = '🚀 CRUCE DE DATOS AUTOMÁTICO EN CURSO (Proceso de cruce en memoria)...';
         dedupeStatus.className = 'alert alert-warning py-1';
         downloadMergeBtn.style.display = 'none'; 
 
@@ -331,41 +323,41 @@
                 const newRow = { ...row1 }; 
                 let isMatch = Object.keys(row2Data).length > 0;
                 
-                for (const field of headers2) {
-                    newRow[field] = isMatch ? row2Data[field] : ''; 
-                }
+                for (const field of headers2) { newRow[field] = isMatch ? row2Data[field] : '';  }
                 mergedResults.push(newRow);
             });
 
             mergedData = mergedResults;
             
             if (mergedData.length > 0) {
-                dedupeStatus.textContent = `✅ **PROCESO FINALIZADO**. Data lista para descargar.`;
+                dedupeStatus.textContent = `✅ **PROCESO FINALIZADO**. Cruce completado. Data lista para descargar.`;
                 dedupeStatus.className = 'alert alert-success py-1';
                 downloadMergeBtn.style.display = 'block'; 
             } else {
-                dedupeStatus.textContent = `⚠️ Error: El cruce no generó resultados válidos. Revise la Carpeta de Pagos y la Carpeta de Asignaciones.`;
+                dedupeStatus.textContent = `⚠️ Error: El cruce no generó resultados válidos.`;
                 dedupeStatus.className = 'alert alert-danger py-1';
             }
-            
             processedDataAsignaciones = null; 
         }, 50); 
     }
 
 
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Pagos (Optimizada por Lotes) ---
+    // --- Lógica del Procesamiento de Pagos (Lotes y Feedback Mejorado) ---
     // ----------------------------------------------------------------------
     
-    // MAPA DE PAGOS: Acumula resultados de todos los lotes
     const aggregatedPagosMap = new Map(); 
 
-    function processPagosFile(file) {
+    function processPagosFile(file, fileIndex, totalFiles) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = function(event) {
                 const chunk = event.target.result.substring(0, 1024);
                 const delimiter = determineDelimiter(chunk);
+                
+                const updateStatus = (processed) => {
+                    pagosProcessStatus.innerHTML = `⚙️ Procesando Pagos... (${fileIndex + 1}/${totalFiles}) **${file.name}**. Filas totales: ${processed.toLocaleString()}.`;
+                };
 
                 Papa.parse(file, {
                     header: true,
@@ -405,11 +397,10 @@
                         }
                         
                         totalRowsCount++;
-                        if (totalRowsCount % 5000 === 0) {
-                             pagosProcessStatus.textContent = `⚙️ Agregando data de Pagos... Filas totales: ${totalRowsCount.toLocaleString()}.`;
-                        }
+                        if (totalRowsCount % 5000 === 0) { updateStatus(totalRowsCount); }
                     },
                     complete: () => {
+                        updateStatus(totalRowsCount); // Actualizar al finalizar el archivo
                         resolve();
                     },
                     error: (error) => {
@@ -423,33 +414,41 @@
     }
 
     async function executePagosProcess(files) {
-        pagosProcessStatus.textContent = `⚙️ Iniciando Consolidación de ${files.length} archivos de Pagos por lotes (Tamaño Lote: ${FILE_BATCH_SIZE})...`;
+        const totalFiles = files.length;
+        
+        pagosProcessStatus.textContent = `⚙️ Iniciando Consolidación de ${totalFiles} archivos por lotes (Lote: ${FILE_BATCH_SIZE})...`;
         pagosProcessStatus.className = 'alert alert-warning py-1';
         pagosProcessStatus.style.display = 'block';
+        
+        // Inicializar la barra
+        updateProgressBar(pagosProgressBar, pagosProgressBarContainer, 0, totalFiles);
 
         aggregatedPagosMap.clear();
         totalRowsCount = 0;
-        filesProcessedInTotal = 0;
         
+        let currentFileIndex = 0; 
+
         // --- PROCESAMIENTO POR LOTES ---
-        for (let i = 0; i < files.length; i += FILE_BATCH_SIZE) {
+        for (let i = 0; i < totalFiles; i += FILE_BATCH_SIZE) {
             const batch = files.slice(i, i + FILE_BATCH_SIZE);
             
-            pagosProcessStatus.textContent = `⚙️ Procesando Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} de ${Math.ceil(files.length / FILE_BATCH_SIZE)} (${batch.length} archivos)...`;
+            pagosProcessStatus.textContent = `⚙️ Procesando Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} de ${Math.ceil(totalFiles / FILE_BATCH_SIZE)} (${batch.length} archivos)...`;
             
-            const batchPromises = batch.map(file => processPagosFile(file));
-            await Promise.allSettled(batchPromises); // Esperar que el lote termine
+            const batchPromises = batch.map((file, index) => processPagosFile(file, i + index, totalFiles));
+            await Promise.allSettled(batchPromises); 
             
-            filesProcessedInTotal += batch.length;
-            // Después de cada lote, forzamos la recolección de basura (aunque es heurístico)
-            // En navegadores modernos, esto ayuda a liberar memoria del worker anterior.
-            console.log(`Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} completado. Filas totales acumuladas: ${totalRowsCount.toLocaleString()}`);
+            currentFileIndex += batch.length;
+            // ACTUALIZAR LA BARRA DESPUÉS DE CADA LOTE
+            updateProgressBar(pagosProgressBar, pagosProgressBarContainer, currentFileIndex, totalFiles);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
         // --- FIN PROCESAMIENTO POR LOTES ---
         
         if (aggregatedPagosMap.size === 0) {
             pagosProcessStatus.textContent = '❌ No se encontraron datos válidos en la Carpeta de Pagos.';
             pagosProcessStatus.className = 'alert alert-danger py-1';
+            pagosProgressBarContainer.style.display = 'none';
             return;
         }
 
@@ -471,19 +470,18 @@
         pagosProcessStatus.className = 'alert alert-success py-1';
         pagosStatus.textContent = `Data de Pagos lista. Ahora, cargue la Carpeta de Asignaciones (Paso 2).`;
         pagosStatus.className = 'alert alert-success py-1';
+        pagosProgressBarContainer.style.display = 'none'; // Ocultar la barra al finalizar
 
-        if (processedDataAsignaciones) {
-            executeMerge();
-        }
+        if (processedDataAsignaciones) { executeMerge(); }
     }
     
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Asignaciones (Optimizada por Lotes) ---
+    // --- Lógica del Procesamiento de Asignaciones (Lotes y Feedback Mejorado) ---
     // ----------------------------------------------------------------------
 
     const aggregatedAsignacionesMap = new Map();
 
-    function processAsignacionesRow(row, fileInfo) {
+    function processAsignacionesRow(row, fileInfo, fileIndex, totalFiles) {
         const docCol = COL_DOC_PRIN;
         const secAggCol = COL_MES_PRIN;
         
@@ -518,11 +516,11 @@
         
         processedRowsCount++;
         if (processedRowsCount % 5000 === 0) {
-            dedupeStatus.textContent = `⚙️ Limpiando data de Asignaciones... Filas totales: ${processedRowsCount.toLocaleString()}.`;
+             dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... (${fileIndex + 1}/${totalFiles}) **${fileInfo.fileName}**. Filas totales: ${processedRowsCount.toLocaleString()}.`;
         }
     }
 
-    function processAsignacionesFile(file) {
+    function processAsignacionesFile(file, fileIndex, totalFiles) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -530,7 +528,7 @@
                 const delimiter = determineDelimiter(chunk);
 
                 const match = file.name.match(/(\d{2}[-.]\d{2}[-.]\d{4})/); 
-                let fileDateInfo = { formattedDate: '01/01/1900', monthFinal: '1', year: '1900', dateObject: new Date(0) };
+                let fileDateInfo = { formattedDate: '01/01/1900', monthFinal: '1', year: '1900', dateObject: new Date(0), fileName: file.name };
                 
                 if (match) {
                     const dateStr = match[0];
@@ -542,6 +540,11 @@
                         fileDateInfo.dateObject = new Date(parseInt(parts[3]), parseInt(parts[2]) - 1, parseInt(parts[1]));
                     }
                 }
+                
+                const updateStatus = (processed) => {
+                    dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... (${fileIndex + 1}/${totalFiles}) **${file.name}**. Filas totales: ${processed.toLocaleString()}.`;
+                };
+
 
                 Papa.parse(file, {
                     header: true,
@@ -552,11 +555,12 @@
                     step: (results, parser) => {
                         const row = results.data[0];
                         if (results.errors.length === 0) {
-                            processAsignacionesRow(row, fileDateInfo);
+                            processAsignacionesRow(row, fileDateInfo, fileIndex, totalFiles);
                         }
                     },
                     complete: () => {
-                        resolve();
+                         updateStatus(processedRowsCount); // Actualizar al finalizar el archivo
+                         resolve();
                     },
                     error: (error) => {
                         console.error(`Error de PapaParse en ${file.name}:`, error);
@@ -576,32 +580,42 @@
             return;
         }
 
-        dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de ${files.length} archivos de Asignaciones por lotes...`;
+        const totalFiles = files.length;
+        
+        dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de ${totalFiles} archivos de Asignaciones por lotes...`;
         dedupeStatus.className = 'alert alert-warning py-1';
         dedupeStatus.style.display = 'block';
         downloadMergeBtn.style.display = 'none';
 
+        // Inicializar la barra
+        updateProgressBar(asignacionesProgressBar, asignacionesProgressBarContainer, 0, totalFiles);
+
         aggregatedAsignacionesMap.clear();
         processedRowsCount = 0;
-        filesProcessedInTotal = 0;
         
+        let currentFileIndex = 0; 
+
         // --- PROCESAMIENTO POR LOTES ---
-        for (let i = 0; i < files.length; i += FILE_BATCH_SIZE) {
+        for (let i = 0; i < totalFiles; i += FILE_BATCH_SIZE) {
             const batch = files.slice(i, i + FILE_BATCH_SIZE);
             
-            dedupeStatus.textContent = `⚙️ Procesando Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} de ${Math.ceil(files.length / FILE_BATCH_SIZE)} (${batch.length} archivos)...`;
+            dedupeStatus.textContent = `⚙️ Procesando Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} de ${Math.ceil(totalFiles / FILE_BATCH_SIZE)} (${batch.length} archivos)...`;
             
-            const batchPromises = batch.map(file => processAsignacionesFile(file));
+            const batchPromises = batch.map((file, index) => processAsignacionesFile(file, i + index, totalFiles));
             await Promise.allSettled(batchPromises); 
             
-            filesProcessedInTotal += batch.length;
-            console.log(`Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} completado. Filas totales acumuladas: ${processedRowsCount.toLocaleString()}`);
+            currentFileIndex += batch.length;
+            // ACTUALIZAR LA BARRA DESPUÉS DE CADA LOTE
+            updateProgressBar(asignacionesProgressBar, asignacionesProgressBarContainer, currentFileIndex, totalFiles);
+
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
         // --- FIN PROCESAMIENTO POR LOTES ---
         
         if (aggregatedAsignacionesMap.size === 0) {
             dedupeStatus.textContent = `❌ No se encontraron datos válidos en la Carpeta de Asignaciones.`;
             dedupeStatus.className = 'alert alert-danger py-1';
+            asignacionesProgressBarContainer.style.display = 'none';
             return;
         }
 
@@ -629,7 +643,6 @@
             finalRow[minDateCol] = ingresoDateStr;
             finalRow[maxDateCol] = salidaDateStr;
             
-            // LÓGICA CORREGIDA: ACTIVO si la Salida es IGUAL A HOY
             finalRow['Estado Real'] = (salidaDateStr === formattedToday) ? 'ACTIVO' : 'INACTIVO';
             
             if (dupCols.length > 0) {
@@ -650,12 +663,13 @@
         dedupeStatus.className = 'alert alert-info py-1';
         anexoStatus.textContent = '¡Archivos consolidados! Iniciando Cruce con Pagos...';
         anexoStatus.className = 'alert alert-success py-1';
+        asignacionesProgressBarContainer.style.display = 'none'; // Ocultar la barra al finalizar
         
         executeMerge();
     }
     
     // ----------------------------------------------------------------------
-    // --- EVENTOS DE CARGA (Sin cambios funcionales) ---
+    // --- EVENTOS DE CARGA (Se mantiene) ---
     // ----------------------------------------------------------------------
 
     pagosFolderInput.addEventListener('change', async (event) => {
@@ -698,5 +712,3 @@
 
 </body>
 </html>
-
-
