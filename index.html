@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROCESOS YESBPO | Automatización de Datos Optimizada</title>
+    <title>PROCESOS YESBPO | Procesamiento Robusto por Lotes</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -135,7 +135,15 @@
 </footer>
 
 <script>
-    // Variables globales
+    // ----------------------------------------------------------------------
+    // --- VARIABLES DE CONFIGURACIÓN Y CONSTANTES ---
+    // ----------------------------------------------------------------------
+    
+    // **NUEVA VARIABLE CLAVE: TAMAÑO DEL LOTE**
+    // Controla cuántos archivos (o Web Workers) se ejecutan a la vez.
+    // Reducir este número si aún hay problemas de saturación.
+    const FILE_BATCH_SIZE = 5; 
+    
     let db;                     
     const CACHE_KEY_PAGOS = 'processedPagosData';
 
@@ -143,24 +151,23 @@
     let processedDataAsignaciones = null; 
     let mergedData = null;       
 
-    // Elementos del DOM
+    // Elementos del DOM (omitted for brevity)
     const folderInput = document.getElementById('folderInput');
     const anexoStatus = document.getElementById('anexoStatus');
     const dedupeStatus = document.getElementById('dedupeStatus');
     const downloadMergeBtn = document.getElementById('downloadMergeBtn');
-    
     const pagosFolderInput = document.getElementById('pagosFolderInput');
     const pagosStatus = document.getElementById('pagosStatus');
     const pagosProcessStatus = document.getElementById('pagosProcessStatus');
     
-    // Contadores para el progreso
-    let processedRowsCount = 0; 
     let totalRowsCount = 0; 
-
+    let processedRowsCount = 0; 
+    let filesProcessedInTotal = 0; 
+    
     // Nombres de Columnas (CONSTANTES)
     const COL_DOC_PRIN = 'Numero Documento';
     const COL_MES_PRIN = 'Mes data';
-    const COL_FECHA_PRIN = 'Nombre del archivo'; // Usamos este para guardar la fecha del archivo
+    const COL_FECHA_PRIN = 'Nombre del archivo'; 
     const COL_ANIO_PRIN = 'Año';
     const COL_DOC_PAGOS = 'Numero de Documento';
     const COL_MES_PAGOS = 'MES';
@@ -170,29 +177,18 @@
     const COL_FECHA_MOV = 'Fecha Movimiento'; 
 
     // ----------------------------------------------------------------------
-    // --- IndexedDB y Utilidades (Sin cambios funcionales mayores) ---
+    // --- IndexedDB y Utilidades (Mantienen funcionalidad) ---
     // ----------------------------------------------------------------------
 
     function initDB() { /* ... (Mantener la función de IndexedDB) ... */
         return new Promise((resolve, reject) => {
-            if (!window.indexedDB) {
-                console.warn('IndexedDB no soportado. Caché deshabilitado.');
-                return resolve(null);
-            }
+            if (!window.indexedDB) { console.warn('IndexedDB no soportado. Caché deshabilitado.'); return resolve(null); }
             const request = window.indexedDB.open("ComfamaCacheDB", 1);
-            request.onerror = (event) => {
-                console.error(`Error al abrir la base de datos: ${event.target.errorCode}`, event.target.error);
-                reject(event.target.error);
-            };
-            request.onsuccess = (event) => {
-                db = event.target.result;
-                resolve(db);
-            };
+            request.onerror = (event) => { console.error(`Error al abrir la base de datos: ${event.target.errorCode}`, event.target.error); reject(event.target.error); };
+            request.onsuccess = (event) => { db = event.target.result; resolve(db); };
             request.onupgradeneeded = (event) => {
                 const dbInstance = event.target.result;
-                if (!dbInstance.objectStoreNames.contains('dataStore')) {
-                    dbInstance.createObjectStore('dataStore', { keyPath: 'key' });
-                }
+                if (!dbInstance.objectStoreNames.contains('dataStore')) { dbInstance.createObjectStore('dataStore', { keyPath: 'key' }); }
             };
         });
     }
@@ -205,10 +201,7 @@
             const dataToStore = { key: key, data: data, timestamp: new Date() };
             const request = store.put(dataToStore);
             request.onsuccess = () => resolve();
-            request.onerror = (event) => {
-                console.error('Error al guardar en caché.', event.target.error);
-                reject(event.target.error);
-            };
+            request.onerror = (event) => { console.error('Error al guardar en caché.', event.target.error); reject(event.target.error); };
         });
     }
 
@@ -222,7 +215,7 @@
                 const result = request.result;
                 if (result && result.data && result.data.length > 0) {
                     dataFilePagos = result.data;
-                    pagosStatus.textContent = `✅ Data de Pagos (Caché) cargada. Filas: ${dataFilePagos.length}. Lista para usar.`;
+                    pagosStatus.textContent = `✅ Data de Pagos (Caché) cargada. Filas: ${dataFilePagos.length.toLocaleString()}. Lista para usar.`;
                     pagosStatus.className = 'alert alert-success py-1';
                     resolve(dataFilePagos);
                 } else {
@@ -231,10 +224,7 @@
                     resolve(null);
                 }
             };
-            request.onerror = (event) => {
-                console.error('Error al cargar el caché.', event.target.error);
-                resolve(null);
-            };
+            request.onerror = (event) => { console.error('Error al cargar el caché.', event.target.error); resolve(null); };
         });
     }
 
@@ -254,10 +244,7 @@
     }
 
     function downloadFile(data, filename, delimiter) { /* ... (Mantener la función de descarga) ... */
-        if (!data) {
-            alert('No hay datos disponibles para descargar.');
-            return;
-        }
+        if (!data) { alert('No hay datos disponibles para descargar.'); return; }
         const finalData = Array.isArray(data) ? data : data.data;
         const csv = Papa.unparse(finalData, { delimiter: delimiter, header: true });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -304,14 +291,14 @@
     }
 
     // ----------------------------------------------------------------------
-    // --- Lógica del Cruce y Procesamiento de Pagos (Streaming & Workers) ---
+    // --- Lógica del Cruce (Mantiene funcionalidad) ---
     // ----------------------------------------------------------------------
 
     function executeMerge() {
         if (!processedDataAsignaciones || !dataFilePagos) {
             return;
         }
-
+        // ... (Se mantiene la lógica de cruce de la versión anterior) ...
         const key1_A = COL_DOC_PRIN;
         const key1_B = COL_DOC_PAGOS;
         const key2_A = COL_MES_PRIN;
@@ -321,19 +308,14 @@
         dedupeStatus.className = 'alert alert-warning py-1';
         downloadMergeBtn.style.display = 'none'; 
 
-        // Usamos setTimeout para que el navegador actualice la UI
         setTimeout(() => {
-            
             const data1 = processedDataAsignaciones;
             const data2 = dataFilePagos;
-            
             const headers2 = [COL_FECHA_MAX_PAGOS, COL_VALOR_PAGADO];
-
-            // 1. Crear el mapa de búsqueda (data2 - Pagos)
             const map2 = new Map();
+            
             data2.forEach(row => {
                 const keyValue = `${String(row[key1_B] || '').trim()}|${String(row[key2_B] || '').trim()}`;
-                
                 if (keyValue) {
                     const rowData = {};
                     headers2.forEach(field => rowData[field] = row[field]);
@@ -345,9 +327,7 @@
             
             data1.forEach(row1 => {
                 const searchKey = `${String(row1[key1_A] || '').trim()}|${String(row1[key2_A] || '').trim()}`;
-
                 const row2Data = map2.get(searchKey) || {};
-                
                 const newRow = { ...row1 }; 
                 let isMatch = Object.keys(row2Data).length > 0;
                 
@@ -368,32 +348,32 @@
                 dedupeStatus.className = 'alert alert-danger py-1';
             }
             
-            // Liberamos la memoria de la data de asignaciones temporal
             processedDataAsignaciones = null; 
-
         }, 50); 
     }
 
-    // MAPA DE PAGOS: Se construye directamente durante el streaming para optimizar
+
+    // ----------------------------------------------------------------------
+    // --- Lógica del Procesamiento de Pagos (Optimizada por Lotes) ---
+    // ----------------------------------------------------------------------
+    
+    // MAPA DE PAGOS: Acumula resultados de todos los lotes
     const aggregatedPagosMap = new Map(); 
 
-    async function processPagosFile(file) {
+    function processPagosFile(file) {
         return new Promise((resolve, reject) => {
-            // 1. Determinar el delimitador de forma segura
             const reader = new FileReader();
             reader.onload = function(event) {
                 const chunk = event.target.result.substring(0, 1024);
                 const delimiter = determineDelimiter(chunk);
 
-                // 2. Iniciar el parsing con Web Worker y Streaming
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
                     dynamicTyping: false,
                     delimiter: delimiter,
-                    worker: true, // ¡Usa un Web Worker!
+                    worker: true, 
                     step: (results, parser) => {
-                        // Procesamiento por cada chunk (fila)
                         const row = results.data[0];
                         if (results.errors.length > 0) return;
 
@@ -409,7 +389,6 @@
                         const mes = String(fechaMov.getMonth() + 1);
                         const groupKey = `${docValue}|${mes}`;
                         
-                        // Agregación en memoria (Mapa)
                         if (!aggregatedPagosMap.has(groupKey)) {
                             aggregatedPagosMap.set(groupKey, {
                                 [COL_DOC_PAGOS]: docValue,
@@ -427,9 +406,8 @@
                         
                         totalRowsCount++;
                         if (totalRowsCount % 5000 === 0) {
-                             pagosProcessStatus.textContent = `⚙️ Agregando data de Pagos... Filas procesadas: ${totalRowsCount.toLocaleString()}.`;
+                             pagosProcessStatus.textContent = `⚙️ Agregando data de Pagos... Filas totales: ${totalRowsCount.toLocaleString()}.`;
                         }
-
                     },
                     complete: () => {
                         resolve();
@@ -440,29 +418,34 @@
                     }
                 });
             };
-            // Leer solo un trozo para determinar el delimitador
             reader.readAsText(file.slice(0, 1024 * 10), 'UTF-8');
         });
     }
 
     async function executePagosProcess(files) {
-        pagosProcessStatus.textContent = `⚙️ Iniciando Consolidación de ${files.length} archivos de Pagos...`;
+        pagosProcessStatus.textContent = `⚙️ Iniciando Consolidación de ${files.length} archivos de Pagos por lotes (Tamaño Lote: ${FILE_BATCH_SIZE})...`;
         pagosProcessStatus.className = 'alert alert-warning py-1';
         pagosProcessStatus.style.display = 'block';
 
-        // 1. Reiniciar el mapa y el contador
         aggregatedPagosMap.clear();
         totalRowsCount = 0;
-
-        for (const file of files) {
-            if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) continue;
-            try {
-                // Procesar cada archivo en streaming
-                await processPagosFile(file);
-            } catch (e) {
-                // El error ya se maneja dentro de processPagosFile
-            }
+        filesProcessedInTotal = 0;
+        
+        // --- PROCESAMIENTO POR LOTES ---
+        for (let i = 0; i < files.length; i += FILE_BATCH_SIZE) {
+            const batch = files.slice(i, i + FILE_BATCH_SIZE);
+            
+            pagosProcessStatus.textContent = `⚙️ Procesando Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} de ${Math.ceil(files.length / FILE_BATCH_SIZE)} (${batch.length} archivos)...`;
+            
+            const batchPromises = batch.map(file => processPagosFile(file));
+            await Promise.allSettled(batchPromises); // Esperar que el lote termine
+            
+            filesProcessedInTotal += batch.length;
+            // Después de cada lote, forzamos la recolección de basura (aunque es heurístico)
+            // En navegadores modernos, esto ayuda a liberar memoria del worker anterior.
+            console.log(`Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} completado. Filas totales acumuladas: ${totalRowsCount.toLocaleString()}`);
         }
+        // --- FIN PROCESAMIENTO POR LOTES ---
         
         if (aggregatedPagosMap.size === 0) {
             pagosProcessStatus.textContent = '❌ No se encontraron datos válidos en la Carpeta de Pagos.';
@@ -476,15 +459,12 @@
             return {
                 [COL_DOC_PAGOS]: data[COL_DOC_PAGOS],
                 [COL_MES_PAGOS]: data[COL_MES_PAGOS],
-                // El formato de fecha se hace aquí, después de la agregación
                 [COL_FECHA_MAX_PAGOS]: formatDateToDDMMYYYY(data[COL_FECHA_MOV]), 
                 [COL_VALOR_PAGADO]: data[COL_VALOR_PAGADO],
             };
         });
         
         dataFilePagos = finalDataPagos;
-
-        // Guardado en Caché
         await saveDataToCache(CACHE_KEY_PAGOS, dataFilePagos);
 
         pagosProcessStatus.textContent = `✅ Consolidación y Transformación de Pagos Completada. Filas finales: ${dataFilePagos.length.toLocaleString()}.`;
@@ -492,34 +472,28 @@
         pagosStatus.textContent = `Data de Pagos lista. Ahora, cargue la Carpeta de Asignaciones (Paso 2).`;
         pagosStatus.className = 'alert alert-success py-1';
 
-        // Si la data de Asignaciones ya está lista, iniciar el cruce
         if (processedDataAsignaciones) {
             executeMerge();
         }
     }
     
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Asignaciones (Streaming & Workers) ---
+    // --- Lógica del Procesamiento de Asignaciones (Optimizada por Lotes) ---
     // ----------------------------------------------------------------------
 
     const aggregatedAsignacionesMap = new Map();
-    let currentFileDateData = {};
 
     function processAsignacionesRow(row, fileInfo) {
         const docCol = COL_DOC_PRIN;
         const secAggCol = COL_MES_PRIN;
-        const minDateCol = COL_FECHA_PRIN;
-        const maxDateCol = COL_FECHA_PRIN;
-
+        
         const docValue = String(row[docCol] || '').trim();
         const secAggValue = fileInfo.monthFinal; 
         if (!docValue || !secAggValue) return; 
 
         const groupKey = `${docValue}|${secAggValue}`;
-        
         const fileDateValue = fileInfo.dateObject;
         
-        // Crear una nueva fila con los datos de fecha del archivo
         const rowWithDate = {
             ...row,
             [COL_FECHA_PRIN]: fileInfo.formattedDate,
@@ -535,7 +509,6 @@
             });
         } else {
             const data = aggregatedAsignacionesMap.get(groupKey);
-            // La fecha del archivo es la fecha clave, no la del campo interno, para mantener consistencia
             if (fileDateValue.getTime() < data.minDate.getTime()) data.minDate = fileDateValue;
             if (fileDateValue.getTime() >= data.maxDate.getTime()) {
                 data.maxDate = fileDateValue;
@@ -545,7 +518,7 @@
         
         processedRowsCount++;
         if (processedRowsCount % 5000 === 0) {
-            dedupeStatus.textContent = `⚙️ Limpiando data de Asignaciones... Filas procesadas: ${processedRowsCount.toLocaleString()}.`;
+            dedupeStatus.textContent = `⚙️ Limpiando data de Asignaciones... Filas totales: ${processedRowsCount.toLocaleString()}.`;
         }
     }
 
@@ -556,7 +529,6 @@
                 const chunk = event.target.result.substring(0, 1024);
                 const delimiter = determineDelimiter(chunk);
 
-                // Obtener datos de fecha del archivo
                 const match = file.name.match(/(\d{2}[-.]\d{2}[-.]\d{4})/); 
                 let fileDateInfo = { formattedDate: '01/01/1900', monthFinal: '1', year: '1900', dateObject: new Date(0) };
                 
@@ -576,7 +548,7 @@
                     skipEmptyLines: true,
                     dynamicTyping: false,
                     delimiter: delimiter,
-                    worker: true, // ¡Usa un Web Worker!
+                    worker: true, 
                     step: (results, parser) => {
                         const row = results.data[0];
                         if (results.errors.length === 0) {
@@ -604,24 +576,28 @@
             return;
         }
 
-        dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de ${files.length} archivos de Asignaciones (Usando Web Workers)...`;
+        dedupeStatus.textContent = `⚙️ Iniciando limpieza y agregación de ${files.length} archivos de Asignaciones por lotes...`;
         dedupeStatus.className = 'alert alert-warning py-1';
         dedupeStatus.style.display = 'block';
         downloadMergeBtn.style.display = 'none';
 
-        // 1. Reiniciar el mapa y el contador
         aggregatedAsignacionesMap.clear();
         processedRowsCount = 0;
-
-        // 2. Procesar todos los archivos en streaming
-        for (const file of files) {
-            if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt')) continue;
-            try {
-                await processAsignacionesFile(file);
-            } catch (e) {
-                // El error ya se maneja dentro de processAsignacionesFile
-            }
+        filesProcessedInTotal = 0;
+        
+        // --- PROCESAMIENTO POR LOTES ---
+        for (let i = 0; i < files.length; i += FILE_BATCH_SIZE) {
+            const batch = files.slice(i, i + FILE_BATCH_SIZE);
+            
+            dedupeStatus.textContent = `⚙️ Procesando Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} de ${Math.ceil(files.length / FILE_BATCH_SIZE)} (${batch.length} archivos)...`;
+            
+            const batchPromises = batch.map(file => processAsignacionesFile(file));
+            await Promise.allSettled(batchPromises); 
+            
+            filesProcessedInTotal += batch.length;
+            console.log(`Lote ${Math.floor(i / FILE_BATCH_SIZE) + 1} completado. Filas totales acumuladas: ${processedRowsCount.toLocaleString()}`);
         }
+        // --- FIN PROCESAMIENTO POR LOTES ---
         
         if (aggregatedAsignacionesMap.size === 0) {
             dedupeStatus.textContent = `❌ No se encontraron datos válidos en la Carpeta de Asignaciones.`;
@@ -631,14 +607,11 @@
 
         dedupeStatus.textContent = `⚙️ Finalizando proceso: Aplicando Estado Real y deduplicación final...`;
         
-        // 3. Post-procesamiento (aplicar lógica de Estado Real)
-        
         const docCol = COL_DOC_PRIN;
         const secAggCol = COL_MES_PRIN;
         const minDateCol = 'Ingreso';
         const maxDateCol = 'Salida';
         
-        // OBTENER FECHA DE HOY FORMATEADA (Corrección)
         const today = new Date();
         today.setHours(0, 0, 0, 0); 
         const formattedToday = formatDateToDDMMYYYY(today); 
@@ -650,7 +623,6 @@
         for (const data of aggregatedAsignacionesMap.values()) { 
             const finalRow = data.latestRow;
             
-            // Re-formatear fechas de Ingreso/Salida
             const ingresoDateStr = formatDateToDDMMYYYY(data.minDate);
             const salidaDateStr = formatDateToDDMMYYYY(data.maxDate);
             
@@ -660,7 +632,6 @@
             // LÓGICA CORREGIDA: ACTIVO si la Salida es IGUAL A HOY
             finalRow['Estado Real'] = (salidaDateStr === formattedToday) ? 'ACTIVO' : 'INACTIVO';
             
-            // Deduplicación final basada en Documento/Mes/Año
             if (dupCols.length > 0) {
                 const key = dupCols.map(col => String(finalRow[col] || '').trim()).join('|'); 
                 if (!seenKeys.has(key)) {
@@ -680,16 +651,13 @@
         anexoStatus.textContent = '¡Archivos consolidados! Iniciando Cruce con Pagos...';
         anexoStatus.className = 'alert alert-success py-1';
         
-        // 4. Ejecutar el cruce final
         executeMerge();
-
     }
     
     // ----------------------------------------------------------------------
-    // --- EVENTOS DE CARGA (Usando las nuevas funciones asíncronas) ---
+    // --- EVENTOS DE CARGA (Sin cambios funcionales) ---
     // ----------------------------------------------------------------------
 
-    // Evento 1: Carga de Carpeta de Pagos (Paso 1)
     pagosFolderInput.addEventListener('change', async (event) => {
         const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
         if (files.length === 0) {
@@ -702,7 +670,6 @@
         await executePagosProcess(files);
     });
 
-    // Evento 2: Carga de Carpeta de Asignaciones (Paso 2)
     folderInput.addEventListener('change', async (event) => {
         const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
         if (files.length === 0) {
