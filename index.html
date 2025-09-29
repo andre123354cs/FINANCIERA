@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROCESOS YESBPO | Procesamiento Fila a Fila Optimizado (2000 Filas)</title>
+    <title>PROCESOS YESBPO | Procesamiento Directo por Archivo (Máxima Velocidad)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -24,7 +24,7 @@
 <body onload="loadCacheOnStart()">
 
 <div class="container">
-    <h1 class="text-center">PROCESOS YESBPO</h1>
+    <h1 class="text-center">PROCESOS YESBPO.</h1>
     
     <div class="d-flex flex-wrap justify-content-center gap-3 mb-4 module-nav" role="tablist">
         <button class="btn px-4 py-2 active" id="comfama-tab" data-bs-toggle="tab" data-bs-target="#comfama" type="button" role="tab" aria-controls="comfama" aria-selected="true">
@@ -110,8 +110,7 @@
     // --- VARIABLES DE CONFIGURACIÓN Y CONSTANTES ---
     // ----------------------------------------------------------------------
     
-    // **CONSTANTE DE OPTIMIZACIÓN:** 2000 filas por bloque para actualizar el feedback.
-    const ROW_BATCH_SIZE = 2000; 
+    // **Importante:** Eliminamos ROW_BATCH_SIZE para procesamiento directo.
     
     let db;                     
     const CACHE_KEY_PAGOS = 'processedPagosData';
@@ -133,6 +132,7 @@
     const asignacionesProgressBar = document.getElementById('asignacionesProgressBar');
     const asignacionesProgressBarContainer = document.getElementById('asignacionesProgressBarContainer');
     
+    // Ya no se usa para feedback de filas, solo para el conteo final
     let totalRowsCount = 0; 
     let processedRowsCount = 0; 
     
@@ -188,12 +188,12 @@
                     dataFilePagos = result.data;
                     pagosStatus.textContent = `✅ Data de Pagos (Caché) cargada. Filas: ${dataFilePagos.length.toLocaleString()}. Lista para usar.`;
                     pagosStatus.className = 'alert alert-success py-1';
-                    folderInput.disabled = false; // Habilitar el Paso 2
+                    folderInput.disabled = false; 
                     resolve(dataFilePagos);
                 } else {
                     pagosStatus.textContent = 'ℹ️ Data de Pagos no encontrada en caché. Cargue la Carpeta de Pagos (Paso 1).';
                     pagosStatus.className = 'alert alert-info py-1';
-                    folderInput.disabled = true; // Mantener deshabilitado
+                    folderInput.disabled = true; 
                     resolve(null);
                 }
             };
@@ -327,11 +327,10 @@
 
 
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Pagos (Paso 1 - Optimizado) ---
+    // --- Lógica del Procesamiento de Pagos (Paso 1 - Máxima Velocidad) ---
     // ----------------------------------------------------------------------
     
     const aggregatedPagosMap = new Map(); 
-    let rowsSinceLastUpdatePagos = 0; 
 
     function processPagosFile(file, fileIndex, totalFiles) {
         return new Promise((resolve, reject) => {
@@ -340,6 +339,7 @@
                 const chunk = event.target.result.substring(0, 1024);
                 const delimiter = determineDelimiter(chunk);
                 
+                // Feedback: Archivo actual.
                 pagosProcessStatus.innerHTML = `⚙️ Procesando Pagos... (${fileIndex + 1}/${totalFiles}) **${file.name}**.`;
 
                 Papa.parse(file, {
@@ -348,50 +348,51 @@
                     dynamicTyping: false,
                     delimiter: delimiter,
                     worker: true, 
-                    step: (results, parser) => {
-                        const row = results.data[0];
-                        if (results.errors.length > 0) return;
-
-                        const valorPagadoEntero = getIntegerValue(row[COL_VALOR_PAGADO_RAW]);
-                        const docValue = String(row[COL_DOC_PAGOS] || '').trim();
-                        const fechaMovStr = String(row[COL_FECHA_MOV] || '').trim();
+                    // CAMBIO CLAVE: Quitamos 'step' para procesar el archivo COMPLETO
+                    complete: (results) => {
+                        const fileData = results.data;
+                        if (!fileData || fileData.length === 0) {
+                             console.warn(`Archivo Pagos vacío o error: ${file.name}`);
+                             totalRowsCount += 0;
+                             return resolve();
+                        }
                         
-                        if (!docValue || !fechaMovStr) return; 
+                        let rowsProcessedInFile = 0;
 
-                        const fechaMov = parseDate(fechaMovStr);
-                        if (isNaN(fechaMov.getTime())) return;
+                        fileData.forEach(row => {
+                            const valorPagadoEntero = getIntegerValue(row[COL_VALOR_PAGADO_RAW]);
+                            const docValue = String(row[COL_DOC_PAGOS] || '').trim();
+                            const fechaMovStr = String(row[COL_FECHA_MOV] || '').trim();
+                            
+                            if (!docValue || !fechaMovStr) return; 
 
-                        const mes = String(fechaMov.getMonth() + 1);
-                        const groupKey = `${docValue}|${mes}`;
-                        
-                        // Lógica de Agregación
-                        if (!aggregatedPagosMap.has(groupKey)) {
-                            aggregatedPagosMap.set(groupKey, {
-                                [COL_DOC_PAGOS]: docValue,
-                                [COL_MES_PAGOS]: mes,
-                                [COL_FECHA_MOV]: fechaMov, 
-                                [COL_VALOR_PAGADO]: valorPagadoEntero, 
-                            });
-                        } else {
-                            const data = aggregatedPagosMap.get(groupKey);
-                            if (fechaMov.getTime() > data[COL_FECHA_MOV].getTime()) {
-                                data[COL_FECHA_MOV] = fechaMov;
+                            const fechaMov = parseDate(fechaMovStr);
+                            if (isNaN(fechaMov.getTime())) return;
+
+                            const mes = String(fechaMov.getMonth() + 1);
+                            const groupKey = `${docValue}|${mes}`;
+                            
+                            // Lógica de Agregación
+                            if (!aggregatedPagosMap.has(groupKey)) {
+                                aggregatedPagosMap.set(groupKey, {
+                                    [COL_DOC_PAGOS]: docValue,
+                                    [COL_MES_PAGOS]: mes,
+                                    [COL_FECHA_MOV]: fechaMov, 
+                                    [COL_VALOR_PAGADO]: valorPagadoEntero, 
+                                });
+                            } else {
+                                const data = aggregatedPagosMap.get(groupKey);
+                                if (fechaMov.getTime() > data[COL_FECHA_MOV].getTime()) {
+                                    data[COL_FECHA_MOV] = fechaMov;
+                                }
+                                data[COL_VALOR_PAGADO] += valorPagadoEntero;
                             }
-                            data[COL_VALOR_PAGADO] += valorPagadoEntero;
-                        }
+                            rowsProcessedInFile++;
+                        });
                         
-                        totalRowsCount++;
-                        rowsSinceLastUpdatePagos++;
-                        
-                        // SOLO ACTUALIZAR FEEDBACK DE FILAS CADA 2000
-                        if (rowsSinceLastUpdatePagos >= ROW_BATCH_SIZE) {
-                             pagosProcessStatus.innerHTML = `⚙️ Procesando Pagos... (${fileIndex + 1}/${totalFiles}) **${file.name}**. Filas totales: ${totalRowsCount.toLocaleString()}.`;
-                             rowsSinceLastUpdatePagos = 0;
-                        }
-                    },
-                    complete: () => {
-                        // Actualizar feedback final de este archivo
-                        pagosProcessStatus.innerHTML = `✅ Archivo Pagos **${file.name}** procesado. Filas totales: ${totalRowsCount.toLocaleString()}.`;
+                        totalRowsCount += rowsProcessedInFile;
+                        // Feedback: Archivo completado
+                        pagosProcessStatus.innerHTML = `✅ Archivo Pagos **${file.name}** procesado.`;
                         resolve();
                     },
                     error: (error) => {
@@ -415,10 +416,10 @@
 
         aggregatedPagosMap.clear();
         totalRowsCount = 0;
-        rowsSinceLastUpdatePagos = 0;
         
         for (let i = 0; i < totalFiles; i++) {
             await processPagosFile(files[i], i, totalFiles);
+            // La barra avanza SOLAMENTE por archivo completado
             updateProgressBar(pagosProgressBar, pagosProgressBarContainer, i + 1, totalFiles);
         }
         
@@ -443,7 +444,7 @@
         dataFilePagos = finalDataPagos;
         await saveDataToCache(CACHE_KEY_PAGOS, dataFilePagos);
         
-        pagosProcessStatus.textContent = `✅ Consolidación de Pagos Completada. ${dataFilePagos.length.toLocaleString()} registros únicos.`;
+        pagosProcessStatus.textContent = `✅ Consolidación de Pagos Completada. ${dataFilePagos.length.toLocaleString()} registros únicos. Filas totales procesadas: ${totalRowsCount.toLocaleString()}.`;
         pagosProcessStatus.className = 'alert alert-success py-1';
         pagosStatus.textContent = `Data de Pagos lista. Puede cargar la Carpeta de Asignaciones (Paso 2).`;
         pagosStatus.className = 'alert alert-success py-1';
@@ -452,53 +453,10 @@
     }
     
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Asignaciones (Paso 2 - Optimizado) ---
+    // --- Lógica del Procesamiento de Asignaciones (Paso 2 - Máxima Velocidad) ---
     // ----------------------------------------------------------------------
 
     const aggregatedAsignacionesMap = new Map();
-    let rowsSinceLastUpdateAsignaciones = 0;
-
-    function processAsignacionesRow(row, fileInfo) {
-        const docCol = COL_DOC_PRIN;
-        const secAggCol = COL_MES_PRIN;
-        
-        const docValue = String(row[docCol] || '').trim();
-        const secAggValue = fileInfo.monthFinal; 
-        if (!docValue || !secAggValue) return; 
-
-        const groupKey = `${docValue}|${secAggValue}`;
-        const fileDateValue = fileInfo.dateObject;
-        
-        const rowWithDate = {
-            ...row,
-            [COL_FECHA_PRIN]: fileInfo.formattedDate,
-            [COL_MES_PRIN]: fileInfo.monthFinal,
-            [COL_ANIO_PRIN]: fileInfo.year
-        };
-
-        if (!aggregatedAsignacionesMap.has(groupKey)) {
-            aggregatedAsignacionesMap.set(groupKey, { 
-                minDate: fileDateValue, 
-                maxDate: fileDateValue, 
-                latestRow: rowWithDate 
-            });
-        } else {
-            const data = aggregatedAsignacionesMap.get(groupKey);
-            if (fileDateValue.getTime() < data.minDate.getTime()) data.minDate = fileDateValue;
-            if (fileDateValue.getTime() >= data.maxDate.getTime()) {
-                data.maxDate = fileDateValue;
-                data.latestRow = rowWithDate; 
-            }
-        }
-        processedRowsCount++;
-        rowsSinceLastUpdateAsignaciones++;
-        
-        // SOLO ACTUALIZAR FEEDBACK DE FILAS CADA 2000
-        if (rowsSinceLastUpdateAsignaciones >= ROW_BATCH_SIZE) {
-             dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... Filas totales: ${processedRowsCount.toLocaleString()}.`;
-             rowsSinceLastUpdateAsignaciones = 0;
-        }
-    }
 
     function processAsignacionesFile(file, fileIndex, totalFiles) {
         return new Promise((resolve, reject) => {
@@ -521,6 +479,7 @@
                     }
                 }
                 
+                // Feedback: Archivo actual.
                 dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... (${fileIndex + 1}/${totalFiles}) **${file.name}**.`;
 
                 Papa.parse(file, {
@@ -529,16 +488,52 @@
                     dynamicTyping: false,
                     delimiter: delimiter,
                     worker: true, 
-                    step: (results, parser) => {
-                        const row = results.data[0];
-                        if (results.errors.length === 0) {
-                            processAsignacionesRow(row, fileDateInfo);
+                    // CAMBIO CLAVE: Quitamos 'step' para procesar el archivo COMPLETO
+                    complete: (results) => {
+                        const fileData = results.data;
+                         if (!fileData || fileData.length === 0) {
+                             console.warn(`Archivo Asignaciones vacío o error: ${file.name}`);
+                             return resolve();
                         }
-                    },
-                    complete: () => {
-                         // Actualizar feedback final de este archivo
-                        dedupeStatus.innerHTML = `✅ Archivo Asignaciones **${file.name}** procesado. Filas totales: ${processedRowsCount.toLocaleString()}.`;
-                         resolve();
+
+                        fileData.forEach(row => {
+                            const docCol = COL_DOC_PRIN;
+                            const secAggCol = COL_MES_PRIN;
+                            
+                            const docValue = String(row[docCol] || '').trim();
+                            const secAggValue = fileDateInfo.monthFinal; 
+                            if (!docValue || !secAggValue) return; 
+
+                            const groupKey = `${docValue}|${secAggValue}`;
+                            const fileDateValue = fileDateInfo.dateObject;
+                            
+                            const rowWithDate = {
+                                ...row,
+                                [COL_FECHA_PRIN]: fileDateInfo.formattedDate,
+                                [COL_MES_PRIN]: fileDateInfo.monthFinal,
+                                [COL_ANIO_PRIN]: fileDateInfo.year
+                            };
+
+                            if (!aggregatedAsignacionesMap.has(groupKey)) {
+                                aggregatedAsignacionesMap.set(groupKey, { 
+                                    minDate: fileDateValue, 
+                                    maxDate: fileDateValue, 
+                                    latestRow: rowWithDate 
+                                });
+                            } else {
+                                const data = aggregatedAsignacionesMap.get(groupKey);
+                                if (fileDateValue.getTime() < data.minDate.getTime()) data.minDate = fileDateValue;
+                                if (fileDateValue.getTime() >= data.maxDate.getTime()) {
+                                    data.maxDate = fileDateValue;
+                                    data.latestRow = rowWithDate; 
+                                }
+                            }
+                            processedRowsCount++;
+                        });
+
+                        // Feedback: Archivo completado
+                        dedupeStatus.innerHTML = `✅ Archivo Asignaciones **${file.name}** procesado.`;
+                        resolve();
                     },
                     error: (error) => {
                         console.error(`Error de PapaParse en ${file.name}:`, error);
@@ -569,10 +564,10 @@
 
         aggregatedAsignacionesMap.clear();
         processedRowsCount = 0;
-        rowsSinceLastUpdateAsignaciones = 0;
         
         for (let i = 0; i < totalFiles; i++) {
             await processAsignacionesFile(files[i], i, totalFiles);
+            // La barra avanza SOLAMENTE por archivo completado
             updateProgressBar(asignacionesProgressBar, asignacionesProgressBarContainer, i + 1, totalFiles);
         }
         
