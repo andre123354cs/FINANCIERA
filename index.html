@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROCESOS YESBPO | Procesamiento en Dos Partes (Máxima Estabilidad)</title>
+    <title>PROCESOS YESBPO | Procesamiento Fila a Fila Optimizado</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -43,9 +43,9 @@
             <div class="alert alert-warning py-2 mb-4" id="cacheStatus" style="display:none;"></div>
 
             <div id="pagosSection" class="section-panel">
-                <div class="section-title text-success">1. Cargar Carpeta de Pagos</div>
+                <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Caché)</div>
                 
-                <p class="fw-bold">1.1 Seleccionar</p>
+                <p class="fw-bold">1.1 Carga de Carpeta de Pagos</p>
                 <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="pagosFolderInput">
                 <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** para Consolidación. *Este paso debe finalizar antes del Paso 2.*</div>
                 
@@ -57,9 +57,9 @@
                 </div>
             
             <div class="section-panel step-divider">
-                <div class="section-title">2. Carpeta de Asignaciones</div>
+                <div class="section-title">2. Carpeta de Asignaciones (Limpieza y Cruce)</div>
                 
-                <p class="fw-bold">2.1 Selecionar </p>
+                <p class="fw-bold">2.1 Carga de Carpeta de Asignaciones (Principal)</p>
                 <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput" disabled>
                 <div class="alert alert-info py-1" id="anexoStatus">Espere a que el Paso 1 finalice para cargar aquí.</div>
                 
@@ -110,7 +110,8 @@
     // --- VARIABLES DE CONFIGURACIÓN Y CONSTANTES ---
     // ----------------------------------------------------------------------
     
-    // **Nota Importante:** Eliminamos FILE_BATCH_SIZE para procesamiento secuencial.
+    // **NUEVA CONSTANTE:** Tamaño del bloque de filas a procesar antes de actualizar contadores.
+    const ROW_BATCH_SIZE = 2000; 
     
     let db;                     
     const CACHE_KEY_PAGOS = 'processedPagosData';
@@ -150,7 +151,7 @@
     // ----------------------------------------------------------------------
     // --- IndexedDB y Utilidades (Se mantienen) ---
     // ----------------------------------------------------------------------
-    function initDB() { /* ... */
+    function initDB() { /* ... (Lógica de IndexedDB) ... */
         return new Promise((resolve, reject) => {
             if (!window.indexedDB) { console.warn('IndexedDB no soportado. Caché deshabilitado.'); return resolve(null); }
             const request = window.indexedDB.open("ComfamaCacheDB", 1);
@@ -266,10 +267,10 @@
     }
 
     // ----------------------------------------------------------------------
-    // --- Lógica del Cruce (Se mantiene optimizada) ---
+    // --- Lógica del Cruce (Se mantiene) ---
     // ----------------------------------------------------------------------
 
-    function executeMerge() {
+    function executeMerge() { /* ... (Lógica de cruce) ... */
         if (!processedDataAsignaciones || !dataFilePagos) { return; }
 
         const key1_A = COL_DOC_PRIN;
@@ -280,7 +281,7 @@
         dedupeStatus.textContent = '🚀 CRUCE DE DATOS AUTOMÁTICO EN CURSO (Proceso final en memoria)...';
         dedupeStatus.className = 'alert alert-warning py-1';
         downloadMergeBtn.style.display = 'none'; 
-        asignacionesProgressBarContainer.style.display = 'none'; // Asegurar que la barra de Asignaciones se oculte aquí
+        asignacionesProgressBarContainer.style.display = 'none'; 
 
         setTimeout(() => {
             const data1 = processedDataAsignaciones;
@@ -288,7 +289,6 @@
             const headers2 = [COL_FECHA_MAX_PAGOS, COL_VALOR_PAGADO];
             const map2 = new Map();
             
-            // 1. Crear Mapa de Búsqueda de Pagos (O(1))
             data2.forEach(row => {
                 const keyValue = `${String(row[key1_B] || '').trim()}|${String(row[key2_B] || '').trim()}`;
                 if (keyValue) {
@@ -300,7 +300,6 @@
             
             const mergedResults = [];
             
-            // 2. Iterar Asignaciones y Cruce (O(N))
             data1.forEach(row1 => {
                 const searchKey = `${String(row1[key1_A] || '').trim()}|${String(row1[key2_A] || '').trim()}`;
                 const row2Data = map2.get(searchKey) || {};
@@ -321,7 +320,6 @@
                 dedupeStatus.textContent = `⚠️ Error: El cruce no generó resultados válidos.`;
                 dedupeStatus.className = 'alert alert-danger py-1';
             }
-            // Liberar memoria de data intermedia
             processedDataAsignaciones = null; 
             dataFilePagos = null;
         }, 50); 
@@ -329,10 +327,11 @@
 
 
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Pagos (Secuencial y Estricto) ---
+    // --- Lógica del Procesamiento de Pagos (Paso 1) ---
     // ----------------------------------------------------------------------
     
     const aggregatedPagosMap = new Map(); 
+    let rowsSinceLastUpdatePagos = 0; 
 
     function processPagosFile(file, fileIndex, totalFiles) {
         return new Promise((resolve, reject) => {
@@ -341,7 +340,6 @@
                 const chunk = event.target.result.substring(0, 1024);
                 const delimiter = determineDelimiter(chunk);
                 
-                // MEJORA: Feedback de archivo actual (barra se actualiza al final del archivo)
                 pagosProcessStatus.innerHTML = `⚙️ Procesando Pagos... (${fileIndex + 1}/${totalFiles}) **${file.name}**.`;
 
                 Papa.parse(file, {
@@ -350,7 +348,6 @@
                     dynamicTyping: false,
                     delimiter: delimiter,
                     worker: true, 
-                    // CAMBIO CLAVE: Usamos 'step' para la estabilidad (fila por fila)
                     step: (results, parser) => {
                         const row = results.data[0];
                         if (results.errors.length > 0) return;
@@ -384,8 +381,17 @@
                         }
                         
                         totalRowsCount++;
+                        rowsSinceLastUpdatePagos++;
+                        
+                        // SOLO ACTUALIZAR FEEDBACK DE FILAS CADA 2000
+                        if (rowsSinceLastUpdatePagos >= ROW_BATCH_SIZE) {
+                             pagosProcessStatus.innerHTML = `⚙️ Procesando Pagos... (${fileIndex + 1}/${totalFiles}) **${file.name}**. Filas totales: ${totalRowsCount.toLocaleString()}.`;
+                             rowsSinceLastUpdatePagos = 0;
+                        }
                     },
                     complete: () => {
+                        // Actualizar feedback final de este archivo
+                        pagosProcessStatus.innerHTML = `✅ Archivo Pagos **${file.name}** procesado. Filas totales: ${totalRowsCount.toLocaleString()}.`;
                         resolve();
                     },
                     error: (error) => {
@@ -409,14 +415,12 @@
 
         aggregatedPagosMap.clear();
         totalRowsCount = 0;
+        rowsSinceLastUpdatePagos = 0;
         
-        // --- PROCESAMIENTO SECUENCIAL (ARCHIVOS UNO POR UNO) ---
         for (let i = 0; i < totalFiles; i++) {
             await processPagosFile(files[i], i, totalFiles);
-            // ACTUALIZAR LA BARRA DESPUÉS DE CADA ARCHIVO
             updateProgressBar(pagosProgressBar, pagosProgressBarContainer, i + 1, totalFiles);
         }
-        // --- FIN PROCESAMIENTO SECUENCIAL ---
         
         if (aggregatedPagosMap.size === 0) {
             pagosProcessStatus.textContent = '❌ No se encontraron datos válidos en la Carpeta de Pagos.';
@@ -439,20 +443,20 @@
         dataFilePagos = finalDataPagos;
         await saveDataToCache(CACHE_KEY_PAGOS, dataFilePagos);
         
-        // Finalización exitosa del Paso 1
         pagosProcessStatus.textContent = `✅ Consolidación de Pagos Completada. ${dataFilePagos.length.toLocaleString()} registros únicos.`;
         pagosProcessStatus.className = 'alert alert-success py-1';
         pagosStatus.textContent = `Data de Pagos lista. Puede cargar la Carpeta de Asignaciones (Paso 2).`;
         pagosStatus.className = 'alert alert-success py-1';
         pagosProgressBarContainer.style.display = 'none'; 
-        folderInput.disabled = false; // Habilitar el Paso 2
+        folderInput.disabled = false; 
     }
     
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Asignaciones (Secuencial y Estricto) ---
+    // --- Lógica del Procesamiento de Asignaciones (Paso 2) ---
     // ----------------------------------------------------------------------
 
     const aggregatedAsignacionesMap = new Map();
+    let rowsSinceLastUpdateAsignaciones = 0;
 
     function processAsignacionesRow(row, fileInfo) {
         const docCol = COL_DOC_PRIN;
@@ -487,6 +491,13 @@
             }
         }
         processedRowsCount++;
+        rowsSinceLastUpdateAsignaciones++;
+        
+        // SOLO ACTUALIZAR FEEDBACK DE FILAS CADA 2000
+        if (rowsSinceLastUpdateAsignaciones >= ROW_BATCH_SIZE) {
+             dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... Filas totales: ${processedRowsCount.toLocaleString()}.`;
+             rowsSinceLastUpdateAsignaciones = 0;
+        }
     }
 
     function processAsignacionesFile(file, fileIndex, totalFiles) {
@@ -518,7 +529,6 @@
                     dynamicTyping: false,
                     delimiter: delimiter,
                     worker: true, 
-                    // CAMBIO CLAVE: Usamos 'step' para la estabilidad (fila por fila)
                     step: (results, parser) => {
                         const row = results.data[0];
                         if (results.errors.length === 0) {
@@ -526,6 +536,8 @@
                         }
                     },
                     complete: () => {
+                         // Actualizar feedback final de este archivo
+                        dedupeStatus.innerHTML = `✅ Archivo Asignaciones **${file.name}** procesado. Filas totales: ${processedRowsCount.toLocaleString()}.`;
                          resolve();
                     },
                     error: (error) => {
@@ -557,14 +569,12 @@
 
         aggregatedAsignacionesMap.clear();
         processedRowsCount = 0;
+        rowsSinceLastUpdateAsignaciones = 0;
         
-        // --- PROCESAMIENTO SECUENCIAL (ARCHIVOS UNO POR UNO) ---
         for (let i = 0; i < totalFiles; i++) {
             await processAsignacionesFile(files[i], i, totalFiles);
-            // ACTUALIZAR LA BARRA DESPUÉS DE CADA ARCHIVO
             updateProgressBar(asignacionesProgressBar, asignacionesProgressBarContainer, i + 1, totalFiles);
         }
-        // --- FIN PROCESAMIENTO SECUENCIAL ---
         
         if (aggregatedAsignacionesMap.size === 0) {
             dedupeStatus.textContent = `❌ No se encontraron datos válidos en la Carpeta de Asignaciones.`;
@@ -617,13 +627,12 @@
         dedupeStatus.className = 'alert alert-info py-1';
         anexoStatus.textContent = 'Archivos de Asignaciones consolidados. Iniciando Cruce con Pagos...';
         anexoStatus.className = 'alert alert-success py-1';
-        // La barra de asignaciones se oculta dentro de executeMerge()
         
         executeMerge();
     }
     
     // ----------------------------------------------------------------------
-    // --- EVENTOS DE CARGA (Actualizados para el flujo de dos partes) ---
+    // --- EVENTOS DE CARGA (Se mantienen) ---
     // ----------------------------------------------------------------------
 
     pagosFolderInput.addEventListener('change', async (event) => {
@@ -634,7 +643,7 @@
             return;
         }
         dataFilePagos = null; 
-        folderInput.disabled = true; // Deshabilitar el Paso 2 al iniciar el 1
+        folderInput.disabled = true; 
         downloadMergeBtn.style.display = 'none'; 
         await executePagosProcess(files);
     });
@@ -667,4 +676,3 @@
 
 </body>
 </html>
-
