@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROCESOS YESBPO | Procesamiento Robusto y Visual</title>
+    <title>PROCESOS YESBPO | Procesamiento Alta Intensidad</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -128,7 +128,8 @@
     // --- VARIABLES DE CONFIGURACIÓN Y CONSTANTES ---
     // ----------------------------------------------------------------------
     
-    const FILE_BATCH_SIZE = 10; 
+    // **AUMENTO MÁXIMO DE INTENSIDAD:** Lote de 20 para mayor concurrencia.
+    const FILE_BATCH_SIZE = 20; 
     
     let db;                     
     const CACHE_KEY_PAGOS = 'processedPagosData';
@@ -145,7 +146,6 @@
     const pagosStatus = document.getElementById('pagosStatus');
     const pagosProcessStatus = document.getElementById('pagosProcessStatus');
     
-    // Referencias a las Barras de Progreso
     const pagosProgressBar = document.getElementById('pagosProgressBar');
     const pagosProgressBarContainer = document.getElementById('pagosProgressBarContainer');
     const asignacionesProgressBar = document.getElementById('asignacionesProgressBar');
@@ -153,7 +153,6 @@
     
     let totalRowsCount = 0; 
     let processedRowsCount = 0; 
-    let filesProcessedInTotal = 0; 
     
     // Nombres de Columnas (CONSTANTES)
     const COL_DOC_PRIN = 'Numero Documento';
@@ -170,7 +169,7 @@
     // ----------------------------------------------------------------------
     // --- IndexedDB y Utilidades (Se mantiene) ---
     // ----------------------------------------------------------------------
-    function initDB() { /* ... */
+    function initDB() { /* ... (Logic remains the same) ... */
         return new Promise((resolve, reject) => {
             if (!window.indexedDB) { console.warn('IndexedDB no soportado. Caché deshabilitado.'); return resolve(null); }
             const request = window.indexedDB.open("ComfamaCacheDB", 1);
@@ -183,7 +182,7 @@
         });
     }
 
-    function saveDataToCache(key, data) { /* ... */
+    function saveDataToCache(key, data) { /* ... (Logic remains the same) ... */
         if (!db) return Promise.resolve();
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(['dataStore'], 'readwrite');
@@ -195,7 +194,7 @@
         });
     }
 
-    function loadDataFromCache(key) { /* ... */
+    function loadDataFromCache(key) { /* ... (Logic remains the same) ... */
         if (!db) return Promise.resolve(null);
         return new Promise((resolve, reject) => {
             const transaction = db.transaction(['dataStore'], 'readonly');
@@ -228,7 +227,7 @@
         return ',';
     }
 
-    function downloadFile(data, filename, delimiter) { /* ... */
+    function downloadFile(data, filename, delimiter) { /* ... (Logic remains the same) ... */
         if (!data) { alert('No hay datos disponibles para descargar.'); return; }
         const finalData = Array.isArray(data) ? data : data.data;
         const csv = Papa.unparse(finalData, { delimiter: delimiter, header: true });
@@ -243,7 +242,7 @@
         document.body.removeChild(link);
     }
     
-    const parseDate = (dateString) => { /* ... */
+    const parseDate = (dateString) => { /* ... (Logic remains the same) ... */
         if (!dateString) return new Date(0); 
         let dateParts = dateString.match(/(\d{1,2})[-./](\d{1,2})[-./](\d{4})/);
         if (dateParts) {
@@ -258,7 +257,7 @@
         return new Date(0); 
     };
     
-    const formatDateToDDMMYYYY = (date) => { /* ... */
+    const formatDateToDDMMYYYY = (date) => { /* ... (Logic remains the same) ... */
         const d = new Date(date);
         const day = String(d.getDate()).padStart(2, '0');
         const month = String(d.getMonth() + 1).padStart(2, '0'); 
@@ -266,7 +265,7 @@
         return `${day}/${month}/${year}`;
     };
 
-    function getIntegerValue(value) { /* ... */
+    function getIntegerValue(value) { /* ... (Logic remains the same) ... */
         if (value === null || value === undefined) return 0;
         let strValue = String(value).trim();
         const splitIndex = strValue.indexOf('.');
@@ -275,20 +274,19 @@
         return parseInt(integerPart, 10) || 0;
     }
     
-    // NUEVA FUNCIÓN PARA ACTUALIZAR LA BARRA DE PROGRESO
     function updateProgressBar(progressBarElement, containerElement, filesProcessed, totalFiles) {
         const percentage = Math.round((filesProcessed / totalFiles) * 100);
         progressBarElement.style.width = percentage + '%';
         progressBarElement.setAttribute('aria-valuenow', percentage);
         progressBarElement.textContent = `${percentage}% Completado (${filesProcessed}/${totalFiles})`;
-        containerElement.style.display = 'flex'; // Mostrar la barra
+        containerElement.style.display = 'flex'; 
     }
 
     // ----------------------------------------------------------------------
     // --- Lógica del Cruce (Se mantiene optimizada) ---
     // ----------------------------------------------------------------------
 
-    function executeMerge() {
+    function executeMerge() { /* ... (Logic remains the same) ... */
         if (!processedDataAsignaciones || !dataFilePagos) { return; }
 
         const key1_A = COL_DOC_PRIN;
@@ -343,10 +341,55 @@
 
 
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Pagos (Lotes y Feedback Mejorado) ---
+    // --- Lógica del Procesamiento de Pagos (CHUNK Agresivo) ---
     // ----------------------------------------------------------------------
     
     const aggregatedPagosMap = new Map(); 
+
+    function processPagosChunk(chunkData, fileIndex, totalFiles, file) {
+        let rowsProcessedInChunk = 0;
+        
+        // El chunk.data ya es un array de filas (objetos)
+        chunkData.forEach(row => {
+            if (!row || Object.keys(row).length === 0) return;
+            
+            const valorPagadoEntero = getIntegerValue(row[COL_VALOR_PAGADO_RAW]);
+            const docValue = String(row[COL_DOC_PAGOS] || '').trim();
+            const fechaMovStr = String(row[COL_FECHA_MOV] || '').trim();
+            
+            if (!docValue || !fechaMovStr) return; 
+
+            const fechaMov = parseDate(fechaMovStr);
+            if (isNaN(fechaMov.getTime())) return;
+
+            const mes = String(fechaMov.getMonth() + 1);
+            const groupKey = `${docValue}|${mes}`;
+            
+            if (!aggregatedPagosMap.has(groupKey)) {
+                aggregatedPagosMap.set(groupKey, {
+                    [COL_DOC_PAGOS]: docValue,
+                    [COL_MES_PAGOS]: mes,
+                    [COL_FECHA_MOV]: fechaMov, 
+                    [COL_VALOR_PAGADO]: valorPagadoEntero, 
+                });
+            } else {
+                const data = aggregatedPagosMap.get(groupKey);
+                if (fechaMov.getTime() > data[COL_FECHA_MOV].getTime()) {
+                    data[COL_FECHA_MOV] = fechaMov;
+                }
+                data[COL_VALOR_PAGADO] += valorPagadoEntero;
+            }
+            
+            totalRowsCount++;
+            rowsProcessedInChunk++;
+        });
+
+        // Feedback por el total de filas que llevamos
+        if (rowsProcessedInChunk > 0) {
+            pagosProcessStatus.innerHTML = `⚙️ Procesando Pagos... (${fileIndex + 1}/${totalFiles}) **${file.name}**. Filas totales: ${totalRowsCount.toLocaleString()}.`;
+        }
+    }
+
 
     function processPagosFile(file, fileIndex, totalFiles) {
         return new Promise((resolve, reject) => {
@@ -355,52 +398,22 @@
                 const chunk = event.target.result.substring(0, 1024);
                 const delimiter = determineDelimiter(chunk);
                 
-                const updateStatus = (processed) => {
-                    pagosProcessStatus.innerHTML = `⚙️ Procesando Pagos... (${fileIndex + 1}/${totalFiles}) **${file.name}**. Filas totales: ${processed.toLocaleString()}.`;
-                };
-
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
                     dynamicTyping: false,
                     delimiter: delimiter,
                     worker: true, 
-                    step: (results, parser) => {
-                        const row = results.data[0];
-                        if (results.errors.length > 0) return;
-
-                        const valorPagadoEntero = getIntegerValue(row[COL_VALOR_PAGADO_RAW]);
-                        const docValue = String(row[COL_DOC_PAGOS] || '').trim();
-                        const fechaMovStr = String(row[COL_FECHA_MOV] || '').trim();
-                        
-                        if (!docValue || !fechaMovStr) return; 
-
-                        const fechaMov = parseDate(fechaMovStr);
-                        if (isNaN(fechaMov.getTime())) return;
-
-                        const mes = String(fechaMov.getMonth() + 1);
-                        const groupKey = `${docValue}|${mes}`;
-                        
-                        if (!aggregatedPagosMap.has(groupKey)) {
-                            aggregatedPagosMap.set(groupKey, {
-                                [COL_DOC_PAGOS]: docValue,
-                                [COL_MES_PAGOS]: mes,
-                                [COL_FECHA_MOV]: fechaMov, 
-                                [COL_VALOR_PAGADO]: valorPagadoEntero, 
-                            });
-                        } else {
-                            const data = aggregatedPagosMap.get(groupKey);
-                            if (fechaMov.getTime() > data[COL_FECHA_MOV].getTime()) {
-                                data[COL_FECHA_MOV] = fechaMov;
-                            }
-                            data[COL_VALOR_PAGADO] += valorPagadoEntero;
+                    // CAMBIO CLAVE: Usamos 'chunk' en lugar de 'step' para procesar bloques más grandes
+                    chunk: (results, parser) => {
+                        if (results.errors.length > 0) {
+                            console.error(`Errores en chunk de ${file.name}:`, results.errors);
+                            parser.abort();
+                            return;
                         }
-                        
-                        totalRowsCount++;
-                        if (totalRowsCount % 5000 === 0) { updateStatus(totalRowsCount); }
+                        processPagosChunk(results.data, fileIndex, totalFiles, file);
                     },
                     complete: () => {
-                        updateStatus(totalRowsCount); // Actualizar al finalizar el archivo
                         resolve();
                     },
                     error: (error) => {
@@ -420,7 +433,6 @@
         pagosProcessStatus.className = 'alert alert-warning py-1';
         pagosProcessStatus.style.display = 'block';
         
-        // Inicializar la barra
         updateProgressBar(pagosProgressBar, pagosProgressBarContainer, 0, totalFiles);
 
         aggregatedPagosMap.clear();
@@ -438,7 +450,6 @@
             await Promise.allSettled(batchPromises); 
             
             currentFileIndex += batch.length;
-            // ACTUALIZAR LA BARRA DESPUÉS DE CADA LOTE
             updateProgressBar(pagosProgressBar, pagosProgressBarContainer, currentFileIndex, totalFiles);
             
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -470,53 +481,60 @@
         pagosProcessStatus.className = 'alert alert-success py-1';
         pagosStatus.textContent = `Data de Pagos lista. Ahora, cargue la Carpeta de Asignaciones (Paso 2).`;
         pagosStatus.className = 'alert alert-success py-1';
-        pagosProgressBarContainer.style.display = 'none'; // Ocultar la barra al finalizar
+        pagosProgressBarContainer.style.display = 'none'; 
 
         if (processedDataAsignaciones) { executeMerge(); }
     }
     
     // ----------------------------------------------------------------------
-    // --- Lógica del Procesamiento de Asignaciones (Lotes y Feedback Mejorado) ---
+    // --- Lógica del Procesamiento de Asignaciones (CHUNK Agresivo) ---
     // ----------------------------------------------------------------------
 
     const aggregatedAsignacionesMap = new Map();
 
-    function processAsignacionesRow(row, fileInfo, fileIndex, totalFiles) {
+    function processAsignacionesChunk(chunkData, fileInfo, fileIndex, totalFiles, file) {
+        let rowsProcessedInChunk = 0;
         const docCol = COL_DOC_PRIN;
         const secAggCol = COL_MES_PRIN;
-        
-        const docValue = String(row[docCol] || '').trim();
-        const secAggValue = fileInfo.monthFinal; 
-        if (!docValue || !secAggValue) return; 
 
-        const groupKey = `${docValue}|${secAggValue}`;
-        const fileDateValue = fileInfo.dateObject;
-        
-        const rowWithDate = {
-            ...row,
-            [COL_FECHA_PRIN]: fileInfo.formattedDate,
-            [COL_MES_PRIN]: fileInfo.monthFinal,
-            [COL_ANIO_PRIN]: fileInfo.year
-        };
+        chunkData.forEach(row => {
+            if (!row || Object.keys(row).length === 0) return;
+            
+            const docValue = String(row[docCol] || '').trim();
+            const secAggValue = fileInfo.monthFinal; 
+            if (!docValue || !secAggValue) return; 
 
-        if (!aggregatedAsignacionesMap.has(groupKey)) {
-            aggregatedAsignacionesMap.set(groupKey, { 
-                minDate: fileDateValue, 
-                maxDate: fileDateValue, 
-                latestRow: rowWithDate 
-            });
-        } else {
-            const data = aggregatedAsignacionesMap.get(groupKey);
-            if (fileDateValue.getTime() < data.minDate.getTime()) data.minDate = fileDateValue;
-            if (fileDateValue.getTime() >= data.maxDate.getTime()) {
-                data.maxDate = fileDateValue;
-                data.latestRow = rowWithDate; 
+            const groupKey = `${docValue}|${secAggValue}`;
+            const fileDateValue = fileInfo.dateObject;
+            
+            const rowWithDate = {
+                ...row,
+                [COL_FECHA_PRIN]: fileInfo.formattedDate,
+                [COL_MES_PRIN]: fileInfo.monthFinal,
+                [COL_ANIO_PRIN]: fileInfo.year
+            };
+
+            if (!aggregatedAsignacionesMap.has(groupKey)) {
+                aggregatedAsignacionesMap.set(groupKey, { 
+                    minDate: fileDateValue, 
+                    maxDate: fileDateValue, 
+                    latestRow: rowWithDate 
+                });
+            } else {
+                const data = aggregatedAsignacionesMap.get(groupKey);
+                if (fileDateValue.getTime() < data.minDate.getTime()) data.minDate = fileDateValue;
+                if (fileDateValue.getTime() >= data.maxDate.getTime()) {
+                    data.maxDate = fileDateValue;
+                    data.latestRow = rowWithDate; 
+                }
             }
-        }
-        
-        processedRowsCount++;
-        if (processedRowsCount % 5000 === 0) {
-             dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... (${fileIndex + 1}/${totalFiles}) **${fileInfo.fileName}**. Filas totales: ${processedRowsCount.toLocaleString()}.`;
+            
+            processedRowsCount++;
+            rowsProcessedInChunk++;
+        });
+
+        if (rowsProcessedInChunk > 0 && processedRowsCount % 5000 < rowsProcessedInChunk) {
+             dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... (${fileIndex + 1}/${totalFiles}) **${file.name}**. Filas totales: ${processedRowsCount.toLocaleString()}.`;
         }
     }
 
@@ -541,25 +559,22 @@
                     }
                 }
                 
-                const updateStatus = (processed) => {
-                    dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... (${fileIndex + 1}/${totalFiles}) **${file.name}**. Filas totales: ${processed.toLocaleString()}.`;
-                };
-
-
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
                     dynamicTyping: false,
                     delimiter: delimiter,
                     worker: true, 
-                    step: (results, parser) => {
-                        const row = results.data[0];
-                        if (results.errors.length === 0) {
-                            processAsignacionesRow(row, fileDateInfo, fileIndex, totalFiles);
+                    // CAMBIO CLAVE: Usamos 'chunk' en lugar de 'step' para procesar bloques más grandes
+                    chunk: (results, parser) => {
+                        if (results.errors.length > 0) {
+                            console.error(`Errores en chunk de ${file.name}:`, results.errors);
+                            parser.abort();
+                            return;
                         }
+                        processAsignacionesChunk(results.data, fileDateInfo, fileIndex, totalFiles, file);
                     },
                     complete: () => {
-                         updateStatus(processedRowsCount); // Actualizar al finalizar el archivo
                          resolve();
                     },
                     error: (error) => {
@@ -587,7 +602,6 @@
         dedupeStatus.style.display = 'block';
         downloadMergeBtn.style.display = 'none';
 
-        // Inicializar la barra
         updateProgressBar(asignacionesProgressBar, asignacionesProgressBarContainer, 0, totalFiles);
 
         aggregatedAsignacionesMap.clear();
@@ -605,7 +619,6 @@
             await Promise.allSettled(batchPromises); 
             
             currentFileIndex += batch.length;
-            // ACTUALIZAR LA BARRA DESPUÉS DE CADA LOTE
             updateProgressBar(asignacionesProgressBar, asignacionesProgressBarContainer, currentFileIndex, totalFiles);
 
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -663,7 +676,7 @@
         dedupeStatus.className = 'alert alert-info py-1';
         anexoStatus.textContent = '¡Archivos consolidados! Iniciando Cruce con Pagos...';
         anexoStatus.className = 'alert alert-success py-1';
-        asignacionesProgressBarContainer.style.display = 'none'; // Ocultar la barra al finalizar
+        asignacionesProgressBarContainer.style.display = 'none'; 
         
         executeMerge();
     }
