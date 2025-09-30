@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PROCESOS YESBPO | Módulos Unificados (Comfama y Azzorti)</title>
+    <title>PROCESOS YESBPO | Módulos Integrados</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
@@ -13,7 +13,7 @@
         .step-divider { border-top: 4px solid #0d6efd; margin-top: 30px; margin-bottom: 30px; padding-top: 15px; }
         h1 { color: #0d6efd; font-weight: 700; margin-bottom: 30px; }
         .section-title { font-size: 1.5rem; color: #495057; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
-        .module-nav button { transition: all 0.3s ease; font-weight: 600; font-size: 1.1rem; border-radius: 0.5rem; border: 2px solid #0d6efd; background-color: #ffffff; color: #0d6efd; }
+        .module-nav button { transition: all all 0.3s ease; font-weight: 600; font-size: 1.1rem; border-radius: 0.5rem; border: 2px solid #0d6efd; background-color: #ffffff; color: #0d6efd; }
         .module-nav button.active { background-color: #0d6efd; color: #ffffff; box-shadow: 0 4px 8px rgba(13, 110, 253, 0.5); }
         .module-nav button:hover:not(.active) { background-color: #e9f0ff; color: #0b5ed7; }
         .hidden-preview { display: none !important; }
@@ -21,10 +21,8 @@
         .footer { padding: 15px 0; background-color: #e9ecef; color: #6c757d; text-align: center; margin-top: 20px; font-size: 0.85rem; }
     </style>
 </head>
-<body onload="loadCacheOnStart()">
-
-<div class="container">
-    <h1 class="text-center">PROCESOS YESBPO | Módulos Integrados</h1>
+<body onload="Comfama_loadCacheOnStart()"> <div class="container">
+    <h1 class="text-center">PROCESOS YESBPO</h1>
     
     <div class="d-flex flex-wrap justify-content-center gap-3 mb-4 module-nav" role="tablist">
         <button class="btn px-4 py-2 active" id="comfama-tab" data-bs-toggle="tab" data-bs-target="#comfama" type="button" role="tab" aria-controls="comfama" aria-selected="true">
@@ -42,50 +40,40 @@
         
         <div class="tab-pane fade show active" id="comfama" role="tabpanel" aria-labelledby="comfama-tab">
             <div class="alert alert-warning py-2 mb-4" id="cacheStatus" style="display:none;"></div>
-
             <div id="pagosSection" class="section-panel">
                 <div class="section-title text-success">1. Carpeta de Pagos (Consolidación y Caché)</div>
-                
                 <p class="fw-bold">1.1 Carga de Carpeta de Pagos</p>
                 <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="pagosFolderInput">
                 <div class="alert alert-info py-1" id="pagosStatus">Cargue la **Carpeta de Pagos** para Consolidación. *Este paso debe finalizar antes del Paso 2.*</div>
-                
                 <div class="alert alert-light mt-2 py-1" id="pagosProcessStatus" style="display:none;"></div>
-                
                 <div class="progress mb-2" id="pagosProgressBarContainer" style="height: 25px; display: none;">
                     <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="pagosProgressBar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                 </div>
             </div>
-            
             <div class="section-panel step-divider">
                 <div class="section-title">2. Carpeta de Asignaciones (Limpieza y Cruce)</div>
-                
                 <p class="fw-bold">2.1 Carga de Carpeta de Asignaciones (Principal)</p>
                 <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="folderInput" disabled>
                 <div class="alert alert-info py-1" id="anexoStatus">Espere a que el Paso 1 finalice para cargar aquí.</div>
-                
                 <p class="fw-bold mt-4">2.2 Proceso Automático (Limpieza y Cruce)</p>
-                
                 <div class="alert alert-light mt-2 py-1" id="dedupeStatus" style="display:none;"></div>
-
                 <div class="progress mb-2" id="asignacionesProgressBarContainer" style="height: 25px; display: none;">
                     <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" id="asignacionesProgressBar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                 </div>
                 <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4">
-                    <button class="btn btn-primary btn-lg" onclick="downloadFile(mergedData, 'resultado_cruce_final.csv', '|');" id="downloadMergeBtn" style="display:none;">
-                        Descargar Data
-                    </button>
+                    <button class="btn btn-primary btn-lg" onclick="downloadFile(Comfama_mergedData, 'resultado_cruce_final_comfama.csv', '|');" id="downloadMergeBtn" style="display:none;">Descargar Data</button>
                     <button id="downloadAnexoBtn" style="display:none;"></button>
                 </div>
-                
             </div>
         </div>
 
         <div class="tab-pane fade" id="azzorti" role="tabpanel" aria-labelledby="azzorti-tab">
             <div class="section-panel">
-                <div class="section-title text-primary">1. Carga, Clasificación y Procesamiento Automático</div> <p class="fw-bold">1.1 Carga de Carpeta Principal (Incluye subcarpetas)</p>
+                <div class="section-title text-primary">1. Carga, Clasificación y Procesamiento Automático</div> 
+                <p class="fw-bold">1.1 Carga de Carpeta Principal (Incluye subcarpetas)</p>
                 <input type="file" webkitdirectory directory multiple class="form-control mb-3" id="azzortiFolderInput">
-                <div class="alert alert-info py-1" id="azzortiStatus">Cargue la **Carpeta Principal** de Azzorti. Se buscarán archivos TXT y el CSV llamado **CIERRES.csv**. El proceso iniciará automáticamente.</div> <p class="fw-bold mt-4">1.2 Resultados de la Clasificación</p>
+                <div class="alert alert-info py-1" id="azzortiStatus">Cargue la **Carpeta Principal** de Azzorti. Se buscarán archivos TXT y el CSV llamado **CIERRES.csv**. El proceso iniciará automáticamente.</div> 
+                <p class="fw-bold mt-4">1.2 Resultados de la Clasificación</p>
                 <div class="row">
                     <div class="col-md-6 mb-2">
                         <div class="alert alert-light py-1" id="azzortiNotesCount">Notas: 0 archivos</div>
@@ -108,7 +96,8 @@
             <div class="section-panel step-divider">
                 <div class="section-title text-success">2. Consolidación, Cruce y Descargas</div>
 
-                <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-3" style="display:none;"> <button class="btn btn-success btn-lg" onclick="executeAzzortiConsolidation();" id="azzortiProcessBtn" disabled>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start mb-3" style="display:none;"> 
+                    <button class="btn btn-success btn-lg" onclick="Azzorti_executeConsolidation();" id="azzortiProcessBtn" disabled>
                         Iniciar Consolidación de Datos
                     </button>
                 </div>
@@ -122,34 +111,34 @@
                 <div class="mt-4 row g-3" id="azzortiDownloadButtons" style="display:none;">
                     <p class="fw-bold">Descarga de Archivos Consolidado:</p>
                     <div class="col-auto">
-                        <button class="btn btn-sm btn-outline-info" id="downloadNotasBtn" onclick="downloadFile(azzortiConsolidatedData.Notas, 'Azzorti_Notas_Consolidado.csv', '|')" disabled>Notas</button>
+                        <button class="btn btn-sm btn-outline-info" id="downloadNotasBtn" onclick="downloadFile(Azzorti_consolidatedData.Notas, 'Azzorti_Notas_Consolidado.csv', '|')" disabled>Notas</button>
                     </div>
                     <div class="col-auto">
-                        <button class="btn btn-sm btn-outline-info" id="downloadPagosBtn" onclick="downloadFile(azzortiConsolidatedData.Pagos, 'Azzorti_Pagos_Consolidado.csv', '|')" disabled>Pagos (Limpio)</button>
+                        <button class="btn btn-sm btn-outline-info" id="downloadPagosBtn" onclick="downloadFile(Azzorti_consolidatedData.Pagos, 'Azzorti_Pagos_Consolidado.csv', '|')" disabled>Pagos (Limpio)</button>
                     </div>
                     <div class="col-auto">
-                        <button class="btn btn-sm btn-outline-info" id="downloadDeudBtn" onclick="downloadFile(azzortiConsolidatedData.Deud, 'Azzorti_Deud_Consolidado.csv', '|')" disabled>Deudas</button>
+                        <button class="btn btn-sm btn-outline-info" id="downloadDeudBtn" onclick="downloadFile(Azzorti_consolidatedData.Deud, 'Azzorti_Deud_Consolidado.csv', '|')" disabled>Deudas</button>
                     </div>
                     <div class="col-auto">
-                        <button class="btn btn-sm btn-outline-info" id="downloadObliBtn" onclick="downloadFile(azzortiConsolidatedData.Obli, 'Azzorti_Obli_Consolidado.csv', '|')" disabled>Obligaciones</button>
+                        <button class="btn btn-sm btn-outline-info" id="downloadObliBtn" onclick="downloadFile(Azzorti_consolidatedData.Obli, 'Azzorti_Obli_Consolidado.csv', '|')" disabled>Obligaciones</button>
                     </div>
                     
                     <hr class="my-3">
                     
                     <div class="col-12 d-flex flex-wrap gap-2">
-                        <button class="btn btn-danger btn-lg" id="downloadCruzeBtn" onclick="downloadFile(azzortiConsolidatedData.Cruze, 'Azzorti_Cruze_Deudas_Obligaciones.csv', '|')" disabled>
+                        <button class="btn btn-danger btn-lg" id="downloadCruzeBtn" onclick="downloadFile(Azzorti_consolidatedData.Cruze, 'Azzorti_Cruze_Deudas_Obligaciones.csv', '|')" disabled>
                             Descargar **CRUCE** Deudas vs. Obligaciones
                         </button>
                         
-                        <button class="btn btn-primary btn-lg" id="downloadPagosCruzeBtn" onclick="downloadFile(azzortiConsolidatedData.PagosCruze, 'Azzorti_Cruze_Pagos_Principal_AGREGADO.csv', '|')" disabled>
+                        <button class="btn btn-primary btn-lg" id="downloadPagosCruzeBtn" onclick="downloadFile(Azzorti_consolidatedData.PagosCruze, 'Azzorti_Cruze_Pagos_Principal_AGREGADO.csv', '|')" disabled>
                             Descargar **CRUCE** Pagos vs. Principal
                         </button>
                         
-                        <button class="btn btn-warning btn-lg" id="downloadCruzePagosFinalBtn" onclick="downloadFile(azzortiConsolidatedData.CruzePagosFinal, 'Azzorti_CONSOLIDADO_FINAL.csv', '|')" disabled>
+                        <button class="btn btn-warning btn-lg" id="downloadCruzePagosFinalBtn" onclick="downloadFile(Azzorti_consolidatedData.CruzePagosFinal, 'Azzorti_CONSOLIDADO_FINAL.csv', '|')" disabled>
                             Descargar **CONSOLIDADO FINAL**
                         </button>
                         
-                        <button class="btn btn-info btn-lg" id="downloadCruzeNotasFinalBtn" onclick="downloadFile(azzortiConsolidatedData.CruzeNotasFinal, 'Azzorti_CRUCE_NOTAS_CONSOLIDADO.csv', '|')" disabled>
+                        <button class="btn btn-info btn-lg" id="downloadCruzeNotasFinalBtn" onclick="downloadFile(Azzorti_consolidatedData.CruzeNotasFinal, 'Azzorti_CRUCE_NOTAS_CONSOLIDADO.csv', '|')" disabled>
                             Descargar **CRUCE NOTAS** vs. Consolidado
                         </button>
                     </div>
@@ -175,129 +164,50 @@
 </footer>
 
 <script>
-    // ======================================================================
-    // === CÓDIGO UNIFICADO Y RENOMBRADO ===
-    // ======================================================================
-
-    // ----------------------------------------------------------------------
-    // --- VARIABLES GLOBALES (Comfama - Sin Renombrar UI/Data) ---
-    // ----------------------------------------------------------------------
-    let db;                      // Comfama IndexedDB instance
-    const CACHE_KEY_PAGOS = 'processedPagosData';
-
-    let dataFilePagos = null;    // Comfama: Data consolidada de Pagos
-    let processedDataAsignaciones = null;  // Comfama: Data de Asignaciones procesada
-    let mergedData = null;        // Comfama: Data final cruce
-
-    // Referencias de UI (Comfama)
-    const folderInput = document.getElementById('folderInput'); // Asignaciones input
-    const anexoStatus = document.getElementById('anexoStatus');
-    const dedupeStatus = document.getElementById('dedupeStatus');
-    const downloadMergeBtn = document.getElementById('downloadMergeBtn');
-    const pagosFolderInput = document.getElementById('pagosFolderInput');
-    const pagosStatus = document.getElementById('pagosStatus');
-    const pagosProcessStatus = document.getElementById('pagosProcessStatus');
-    
-    const pagosProgressBar = document.getElementById('pagosProgressBar');
-    const pagosProgressBarContainer = document.getElementById('pagosProgressBarContainer');
-    const asignacionesProgressBar = document.getElementById('asignacionesProgressBar');
-    const asignacionesProgressBarContainer = document.getElementById('asignacionesProgressBarContainer');
-    
-    let totalRowsCount = 0; 
-    let processedRowsCount = 0; 
-    
-    // Nombres de Columnas (Comfama CONSTANTES)
-    const COL_DOC_PRIN = 'Numero Documento';
-    const COL_MES_PRIN = 'Mes data';
-    const COL_FECHA_PRIN = 'Nombre del archivo'; 
-    const COL_ANIO_PRIN = 'Año';
-    const COL_DOC_PAGOS = 'Numero de Documento';
-    const COL_MES_PAGOS = 'MES';
-    const COL_FECHA_MAX_PAGOS = 'Fecha_Movimiento_Maxima';
-    const COL_VALOR_PAGADO = 'Suma_Valor_Pagado';
-    const COL_VALOR_PAGADO_RAW = 'Valor Pagado'; 
-    const COL_FECHA_MOV = 'Fecha Movimiento'; 
-
-    // ----------------------------------------------------------------------
-    // --- VARIABLES GLOBALES (Azzorti) ---
-    // ----------------------------------------------------------------------
-    const azzortiFolderInput = document.getElementById('azzortiFolderInput');
-    const azzortiStatus = document.getElementById('azzortiStatus');
-    const azzortiProcessBtn = document.getElementById('azzortiProcessBtn');
-    const azzortiProcessStatus = document.getElementById('azzortiProcessStatus');
-    const azzortiProgressBar = document.getElementById('azzortiProgressBar');
-    const azzortiProgressBarContainer = document.getElementById('azzortiProgressBarContainer');
-    const azzortiDownloadButtons = document.getElementById('azzortiDownloadButtons');
-    const downloadCruzeBtn = document.getElementById('downloadCruzeBtn');
-    const downloadPagosCruzeBtn = document.getElementById('downloadPagosCruzeBtn'); 
-    const downloadCruzePagosFinalBtn = document.getElementById('downloadCruzePagosFinalBtn');
-    const downloadCruzeNotasFinalBtn = document.getElementById('downloadCruzeNotasFinalBtn'); 
-    const cierreCampanaStatus = document.getElementById('cierreCampanaStatus');
-
-    // Claves de identificación para el cruce (Azzorti)
-    const AZZORTI_KEY_DEUD = 'NUMERO IDENTIFICACION'; 
-    const AZZORTI_KEY_OBLI = 'NUM. IDENTIFICACION'; 
-    const AZZORTI_KEY_PAGOS = 'NUM. IDENTIFICACION'; 
-    const AZZORTI_KEY_CRUZE_PAGOS = 'NUMERO IDENTIFICACION'; 
-    
-    let azzortiFiles = {
-        'Notas': [],
-        'Pagos': [],
-        'Deud': [],
-        'Obli': []
-    };
-    
-    let azzortiConsolidatedData = {
-        'Notas': null,
-        'Pagos': null,
-        'Deud': null,
-        'Obli': null,
-        'Cruze': null, 
-        'PagosCruze': null, 
-        'CruzePagosFinal': null, 
-        'CruzeNotasFinal': null 
-    };
-    
-    let cierreCampanaMap = new Map(); 
-    
-    const COLUMNS_TO_DELETE = [
-        'Part_0', 'Part_1', 'Part_2', 'Part_3', 'Part_4', '_1', '_2', '_3'
-    ];
-    
-    const RENAME_MAP = {
-        'Part_5': 'Campanas', 
-        'Part_6': 'Corte',
-        'Part_7': 'Fecha Ingreso'
-    };
-    
-    const CRUZE_COLUMNS_TO_IMPORT = [
-        'Campanas', 
-        'Fecha Ingreso',
-        'Etapa', 
-        'Salida'
-    ];
-
     // ----------------------------------------------------------------------
     // --- UTILIDADES GLOBALES ---
     // ----------------------------------------------------------------------
+    function determineDelimiter(fileChunk) {
+        if (fileChunk.includes('|')) return '|';
+        if (fileChunk.includes(';')) return ';';
+        return ',';
+    }
 
     /**
-     * Helper para descargar archivos. Usado por ambos módulos.
+     * Función universal para descargar datos en formato CSV.
      */
-    function downloadFile(data, filename, delimiter = ',') {
+    function downloadFile(data, filename, delimiter) {
         if (!data) {
-            alert("No hay datos para descargar. Ejecute el proceso primero.");
+            alert('No hay datos disponibles para descargar.');
             return;
         }
 
-        const csv = Papa.unparse(data, {
-            delimiter: delimiter,
-            header: true 
-        });
+        const finalData = Array.isArray(data) ? data : data.data; 
+
+        if (!finalData || finalData.length === 0) {
+            alert('El conjunto de datos está vacío.');
+            return;
+        }
+
+        // Determinar si PapaParse ya generó la salida CSV (string) o si es un array de objetos
+        let csv = '';
+        if (typeof finalData === 'string') {
+            csv = finalData;
+        } else if (Array.isArray(finalData) && typeof finalData[0] === 'object') {
+            // Si es un array de objetos, usar PapaParse para generar el CSV
+            csv = Papa.unparse(finalData, {
+                delimiter: delimiter || '|',
+                header: true
+            });
+        } else {
+            // Caso de arrays de arrays o dato inesperado
+            alert('Formato de datos no reconocido para descarga.');
+            return;
+        }
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
-        if (link.download !== undefined) { 
+        if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
             link.setAttribute("download", filename);
@@ -307,453 +217,486 @@
             document.body.removeChild(link);
         }
     }
-    
-    /**
-     * Actualiza la barra de progreso. Usado por ambos módulos.
-     */
-    function updateProgressBar(progressBarId, progressContainerId, percentage, statusMessage, isFinished = false, isError = false) {
-        const progressBar = document.getElementById(progressBarId);
-        const progressContainer = document.getElementById(progressContainerId);
-        if (progressContainer) progressContainer.style.display = percentage > 0 ? 'flex' : 'none';
 
-        if (progressBar) {
-            progressBar.style.width = percentage.toFixed(2) + '%';
-            progressBar.textContent = percentage.toFixed(2) + '%';
-            
-            progressBar.classList.remove('bg-danger', 'bg-success', 'bg-primary', 'progress-bar-animated', 'progress-bar-striped');
-
-            if (isError) {
-                progressBar.classList.add('bg-danger');
-            } else if (progressBarId.includes('azzorti')) {
-                progressBar.classList.add('bg-primary'); 
-            } else if (progressBarId.includes('asignaciones')) {
-                progressBar.classList.add('bg-success'); 
-            } else {
-                progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
-            }
-            
-            if (isFinished && !isError) {
-                progressBar.classList.add('bg-success');
-                progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
-                progressBar.textContent = '100% - Completo';
-            }
-        }
-
-        const statusElementId = (progressBarId.includes('pagos')) ? 'pagosProcessStatus' : (progressBarId.includes('asignaciones')) ? 'dedupeStatus' : 'azzortiProcessStatus';
-        const statusElement = document.getElementById(statusElementId);
-        if (statusElement) {
-            statusElement.style.display = 'block';
-            statusElement.textContent = statusMessage;
-            statusElement.className = isError ? 'alert alert-danger py-1' : 'alert alert-light mt-2 py-1';
-        }
-    }
-
-    /**
-     * Determina el delimitador de un archivo. Usado por Comfama.
-     */
-    function determineDelimiter(fileChunk) {
-        if (fileChunk.includes('|')) return '|';
-        if (fileChunk.includes(';')) return ';';
-        if (fileChunk.includes(',')) return ',';
-        return ','; 
-    }
-    
-    /**
-     * Limpia un número de documento (solo dígitos). Usado por Comfama.
-     */
-    function cleanNumeroDocumentoComfama(doc) {
-        if (!doc) return '';
-        return String(doc).replace(/\D/g, '').trim();
-    }
 
     // ----------------------------------------------------------------------
-    // --- LÓGICA COMFAMA (IndexedDB y Cache) ---
+    // --- LÓGICA COMFAMA FINANCIERA (Index (5).html) - Prefijado con Comfama_ ---
     // ----------------------------------------------------------------------
+    let Comfama_db;                     
+    const Comfama_CACHE_KEY_PAGOS = 'processedPagosData';
+
+    let Comfama_dataFilePagos = null;    
+    let Comfama_processedDataAsignaciones = null; 
+    let Comfama_mergedData = null;       
+
+    const Comfama_folderInput = document.getElementById('folderInput');
+    const Comfama_anexoStatus = document.getElementById('anexoStatus');
+    const Comfama_dedupeStatus = document.getElementById('dedupeStatus');
+    const Comfama_downloadMergeBtn = document.getElementById('downloadMergeBtn');
+    const Comfama_pagosFolderInput = document.getElementById('pagosFolderInput');
+    const Comfama_pagosStatus = document.getElementById('pagosStatus');
+    const Comfama_pagosProcessStatus = document.getElementById('pagosProcessStatus');
     
-    function initDB() { 
+    const Comfama_pagosProgressBar = document.getElementById('pagosProgressBar');
+    const Comfama_pagosProgressBarContainer = document.getElementById('pagosProgressBarContainer');
+    const Comfama_asignacionesProgressBar = document.getElementById('asignacionesProgressBar');
+    const Comfama_asignacionesProgressBarContainer = document.getElementById('asignacionesProgressBarContainer');
+    
+    let Comfama_totalRowsCount = 0; 
+    let Comfama_processedRowsCount = 0; 
+    
+    const Comfama_aggregatedPagosMap = new Map();
+    const Comfama_aggregatedAsignacionesMap = new Map();
+    
+    // Nombres de Columnas (CONSTANTES)
+    const Comfama_COL_DOC_PRIN = 'Numero Documento';
+    const Comfama_COL_MES_PRIN = 'Mes data';
+    const Comfama_COL_FECHA_PRIN = 'Nombre del archivo'; 
+    const Comfama_COL_ANIO_PRIN = 'Año';
+    const Comfama_COL_DOC_PAGOS = 'Numero de Documento';
+    const Comfama_COL_MES_PAGOS = 'MES';
+    const Comfama_COL_FECHA_MAX_PAGOS = 'Fecha_Movimiento_Maxima';
+    const Comfama_COL_VALOR_PAGADO = 'Suma_Valor_Pagado';
+    const Comfama_COL_VALOR_PAGADO_RAW = 'Valor Pagado'; 
+    const Comfama_COL_FECHA_MOV = 'Fecha Movimiento'; 
+
+
+    function Comfama_initDB() {
         return new Promise((resolve, reject) => {
             if (!window.indexedDB) { 
                 console.warn('IndexedDB no soportado. Caché deshabilitado.'); 
-                document.getElementById('cacheStatus').style.display = 'block';
-                document.getElementById('cacheStatus').textContent = '⚠️ Advertencia: IndexedDB no es compatible con su navegador. La funcionalidad de caché no estará disponible.';
                 return resolve(null); 
             }
             const request = window.indexedDB.open("ComfamaCacheDB", 1);
-            request.onerror = (event) => { console.error(`Error al abrir la base de datos: ${event.target.errorCode}`, event.target.error); reject(event.target.error); };
-            request.onsuccess = (event) => { db = event.target.result; resolve(db); };
+            request.onerror = (event) => { 
+                console.error(`Error al abrir la base de datos: ${event.target.errorCode}`, event.target.error); 
+                reject(event.target.error); 
+            };
+            request.onsuccess = (event) => { 
+                Comfama_db = event.target.result; 
+                resolve(Comfama_db); 
+            };
             request.onupgradeneeded = (event) => {
                 const dbInstance = event.target.result;
-                if (!dbInstance.objectStoreNames.contains('dataStore')) { dbInstance.createObjectStore('dataStore', { keyPath: 'key' }); }
+                if (!dbInstance.objectStoreNames.contains('dataStore')) { 
+                    dbInstance.createObjectStore('dataStore', { keyPath: 'key' }); 
+                }
             };
         });
     }
 
-    function saveDataToCache(key, data) {
-        if (!db) return Promise.resolve();
+    function Comfama_saveDataToCache(key, data) {
+        if (!Comfama_db) return Promise.resolve();
         return new Promise((resolve, reject) => {
-            const transaction = db.transaction(['dataStore'], 'readwrite');
+            const transaction = Comfama_db.transaction(['dataStore'], 'readwrite');
             const store = transaction.objectStore('dataStore');
             const dataToStore = { key: key, data: data, timestamp: new Date() };
             const request = store.put(dataToStore);
             request.onsuccess = () => resolve();
-            request.onerror = (event) => { console.error('Error al guardar en caché.', event.target.error); reject(event.target.error); };
+            request.onerror = (event) => { 
+                console.error('Error al guardar en caché.', event.target.error); 
+                reject(event.target.error); 
+            };
         });
     }
 
-    function loadDataFromCache(key) {
-        if (!db) return Promise.resolve(null);
+    function Comfama_loadDataFromCache(key) {
+        if (!Comfama_db) return Promise.resolve(null);
         return new Promise((resolve, reject) => {
-            const transaction = db.transaction(['dataStore'], 'readonly');
+            const transaction = Comfama_db.transaction(['dataStore'], 'readonly');
             const store = transaction.objectStore('dataStore');
             const request = store.get(key);
             request.onsuccess = () => {
                 const result = request.result;
-                const cacheStatusEl = document.getElementById('cacheStatus');
                 if (result && result.data && result.data.length > 0) {
-                    dataFilePagos = result.data;
-                    cacheStatusEl.style.display = 'block';
-                    cacheStatusEl.textContent = `✅ Data de Pagos (Caché) cargada. Filas: ${dataFilePagos.length.toLocaleString()}. Lista para usar.`;
-                    cacheStatusEl.className = 'alert alert-success py-1';
-                    folderInput.disabled = false;
-                    resolve(dataFilePagos);
+                    Comfama_dataFilePagos = result.data;
+                    document.getElementById('cacheStatus').textContent = `⚠️ Caché de Pagos cargada (${new Date(result.timestamp).toLocaleTimeString()}). Filas: ${Comfama_dataFilePagos.length.toLocaleString()}.`;
+                    document.getElementById('cacheStatus').style.display = 'block';
+                    Comfama_pagosStatus.textContent = `✅ Data de Pagos (Caché) cargada. Filas: ${Comfama_dataFilePagos.length.toLocaleString()}. Lista para usar.`;
+                    Comfama_pagosStatus.className = 'alert alert-success py-1';
+                    Comfama_folderInput.disabled = false;
+                    resolve(Comfama_dataFilePagos);
                 } else {
-                    cacheStatusEl.style.display = 'block';
-                    cacheStatusEl.textContent = 'ℹ️ Data de Pagos no encontrada en caché. Cargue la Carpeta de Pagos (Paso 1).';
-                    cacheStatusEl.className = 'alert alert-info py-1';
-                    folderInput.disabled = true;
+                    document.getElementById('cacheStatus').style.display = 'none';
+                    Comfama_pagosStatus.textContent = 'ℹ️ Data de Pagos no encontrada en caché. Cargue la Carpeta de Pagos (Paso 1).';
+                    Comfama_pagosStatus.className = 'alert alert-info py-1';
+                    Comfama_folderInput.disabled = true;
                     resolve(null);
                 }
             };
             request.onerror = (event) => { 
                 console.error('Error al cargar el caché.', event.target.error); 
-                document.getElementById('cacheStatus').style.display = 'block';
-                document.getElementById('cacheStatus').textContent = '❌ Error al cargar el caché de Pagos. Pruebe a recargar la página.';
-                document.getElementById('cacheStatus').className = 'alert alert-danger py-1';
                 resolve(null); 
             };
         });
     }
 
-    async function loadCacheOnStart() {
+    async function Comfama_loadCacheOnStart() {
         try {
-            await initDB();
-            await loadDataFromCache(CACHE_KEY_PAGOS);
+            await Comfama_initDB();
+            await Comfama_loadDataFromCache(Comfama_CACHE_KEY_PAGOS);
         } catch (e) {
             console.error('Fallo grave al inicializar la base de datos de caché.', e);
         }
     }
 
+    async function Comfama_executePagosProcess(files) {
+        Comfama_aggregatedPagosMap.clear();
+        Comfama_dataFilePagos = null;
+        Comfama_folderInput.disabled = true;
+        
+        Comfama_pagosProgressBarContainer.style.display = 'block';
+        Comfama_pagosProcessStatus.style.display = 'block';
 
-    // ----------------------------------------------------------------------
-    // --- LÓGICA COMFAMA (Procesamiento) - RENOMBRADO ---
-    // ----------------------------------------------------------------------
+        const totalFiles = files.length;
+        let processedFiles = 0;
 
-    /**
-     * Procesa un único archivo de Pagos, agregando la data.
-     * @param {File} file El objeto File.
-     */
-    function processComfamaPagosFile(file, fileIndex, totalFiles) {
+        for (const file of files) {
+            await Comfama_processPagosFile(file, processedFiles, totalFiles);
+            processedFiles++;
+            const progress = Math.round((processedFiles / totalFiles) * 100);
+            Comfama_pagosProgressBar.style.width = `${progress}%`;
+            Comfama_pagosProgressBar.textContent = `${progress}%`;
+        }
+
+        const aggregatedArray = Array.from(Comfama_aggregatedPagosMap.values());
+        Comfama_dataFilePagos = aggregatedArray;
+        
+        await Comfama_saveDataToCache(Comfama_CACHE_KEY_PAGOS, Comfama_dataFilePagos);
+
+        Comfama_pagosProgressBarContainer.style.display = 'none';
+        Comfama_pagosProcessStatus.style.display = 'none';
+        
+        Comfama_pagosStatus.textContent = `✅ Proceso de Pagos finalizado. Registros consolidados: ${Comfama_dataFilePagos.length.toLocaleString()}. Data guardada en Caché.`;
+        Comfama_pagosStatus.className = 'alert alert-success py-1';
+        Comfama_folderInput.disabled = false;
+        document.getElementById('cacheStatus').textContent = `⚠️ Caché de Pagos guardada (${new Date().toLocaleTimeString()}). Filas: ${Comfama_dataFilePagos.length.toLocaleString()}.`;
+        document.getElementById('cacheStatus').style.display = 'block';
+    }
+
+    function Comfama_processPagosFile(file, fileIndex, totalFiles) {
         return new Promise((resolve, reject) => {
-            let processedRows = 0;
-            const reader = new FileReader();
+            Comfama_pagosProcessStatus.innerHTML = `⚙️ Consolidando Pagos... (${fileIndex + 1}/${totalFiles}) - **${file.name}**`;
 
-            reader.onload = (event) => {
-                const chunk = event.target.result.substring(0, 1024 * 10); 
-                const delimiter = determineDelimiter(chunk);
+            const fileSizeLimit = 20 * 1024 * 1024; // 20 MB
+            const isLargeFile = file.size > fileSizeLimit;
+            const workerConfig = isLargeFile ? { worker: true } : {};
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const fileChunk = e.target.result.substring(0, 1024);
+                const delimiter = determineDelimiter(fileChunk);
                 
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
                     delimiter: delimiter,
-                    worker: true,
+                    ...workerConfig,
                     complete: (results) => {
-                        const data = results.data;
-                        const errors = results.errors;
+                        let data = results.data;
+                        let successCount = 0;
+                        
+                        if (data && data.length > 0) {
+                            // Detección de columnas
+                            let originalKeyDoc = results.meta.fields.find(field => (field || '').trim() === Comfama_COL_DOC_PAGOS);
+                            let originalKeyMes = results.meta.fields.find(field => (field || '').trim() === Comfama_COL_MES_PAGOS);
+                            let originalKeyValor = results.meta.fields.find(field => (field || '').trim() === Comfama_COL_VALOR_PAGADO_RAW);
+                            let originalKeyFecha = results.meta.fields.find(field => (field || '').trim() === Comfama_COL_FECHA_MOV);
 
-                        if (errors.length > 0) {
-                            console.error(`Errores en el archivo ${file.name}:`, errors);
-                        }
-
-                        if (data.length > 0) {
-                            const originalDocKey = results.meta.fields.find(field => cleanStringAzzorti(field).includes(cleanStringAzzorti(COL_DOC_PAGOS)));
-                            const originalMesKey = results.meta.fields.find(field => cleanStringAzzorti(field).includes(cleanStringAzzorti(COL_MES_PAGOS)));
-                            const originalFechaMovKey = results.meta.fields.find(field => cleanStringAzzorti(field).includes(cleanStringAzzorti(COL_FECHA_MOV)));
-                            const originalValorPagadoKey = results.meta.fields.find(field => cleanStringAzzorti(field).includes(cleanStringAzzorti(COL_VALOR_PAGADO_RAW)) && !cleanStringAzzorti(field).includes('suma'));
-
-                            if (!originalDocKey || !originalMesKey || !originalFechaMovKey || !originalValorPagadoKey) {
-                                pagosProcessStatus.textContent = `❌ Error en ${file.name}: Faltan columnas clave (Documento, Mes, Fecha Movimiento, Valor Pagado).`;
-                                resolve({ success: false, rows: 0 });
-                                return;
+                            if (!originalKeyDoc || !originalKeyMes || !originalKeyValor || !originalKeyFecha) {
+                                Comfama_pagosProcessStatus.innerHTML += ` ❌ **ERROR:** Archivo **${file.name}** omitido. No se encontraron las columnas de Pagos: "${Comfama_COL_DOC_PAGOS}", "${Comfama_COL_MES_PAGOS}", "${Comfama_COL_VALOR_PAGADO_RAW}", "${Comfama_COL_FECHA_MOV}". (Delimitador: ${delimiter})`;
+                                return resolve(); 
                             }
                             
                             data.forEach(row => {
-                                const doc = cleanNumeroDocumentoComfama(row[originalDocKey]);
-                                const mes = String(row[originalMesKey] || '').trim();
-                                const fechaMov = String(row[originalFechaMovKey] || '').trim();
-                                let valorPagado = parseFloat(String(row[originalValorPagadoKey] || 0).replace(/[$.]/g, '').replace(',', '.')); 
+                                const doc = String(row[originalKeyDoc] || '').trim();
+                                const mes = String(row[originalKeyMes] || '').trim();
+                                const valorRaw = String(row[originalKeyValor] || '').replace(/[$,\s]/g, '');
+                                const fechaRaw = String(row[originalKeyFecha] || '').trim();
                                 
-                                if (isNaN(valorPagado)) valorPagado = 0;
+                                const valor = parseFloat(valorRaw) || 0;
+                                const key = `${doc}|${mes}`;
                                 
-                                if (doc && mes && fechaMov && valorPagado > 0) {
-                                    const key = `${doc}|${mes}`;
+                                if (doc && mes && valor > 0) {
+                                    const currentDate = Comfama_aggregatedPagosMap.get(key);
                                     
-                                    // Guardamos la fila completa, si ya existe, actualizamos los campos clave
-                                    if (dataFilePagos.find(r => `${cleanNumeroDocumentoComfama(r[originalDocKey])}|${String(r[originalMesKey] || '').trim()}` === key)) {
-                                        // Si ya existe, actualizamos la fecha y sumamos el valor
-                                        const existingRow = dataFilePagos.find(r => `${cleanNumeroDocumentoComfama(r[originalDocKey])}|${String(r[originalMesKey] || '').trim()}` === key);
-                                        
-                                        // Conversión de fechas para comparación
-                                        const existingDate = new Date(existingRow[COL_FECHA_MOV]);
-                                        const newDate = new Date(fechaMov);
-                                        
-                                        if (newDate > existingDate) {
-                                            existingRow[COL_FECHA_MOV] = fechaMov;
-                                        }
-                                        
-                                        // Sumamos el valor
-                                        existingRow[COL_VALOR_PAGADO] = (existingRow[COL_VALOR_PAGADO] || 0) + valorPagado;
-                                    } else {
-                                        // Si es nueva, la agregamos
-                                        const newRow = { ...row };
-                                        newRow[COL_DOC_PAGOS] = doc; // Estandarizamos el documento
-                                        newRow[COL_VALOR_PAGADO] = valorPagado; // Creamos la columna agregada
-                                        newRow[COL_FECHA_MOV] = fechaMov; // Aseguramos la columna de fecha
-                                        dataFilePagos.push(newRow);
+                                    const newDate = new Date(fechaRaw);
+                                    let maxDate = currentDate ? new Date(currentDate[Comfama_COL_FECHA_MAX_PAGOS]) : new Date(0);
+
+                                    if (newDate > maxDate) {
+                                        maxDate = newDate;
                                     }
-                                    processedRows++;
+                                    
+                                    const newEntry = {
+                                        [Comfama_COL_DOC_PAGOS]: doc,
+                                        [Comfama_COL_MES_PAGOS]: mes,
+                                        [Comfama_COL_VALOR_PAGADO]: (currentDate ? currentDate[Comfama_COL_VALOR_PAGADO] : 0) + valor,
+                                        [Comfama_COL_FECHA_MAX_PAGOS]: maxDate.toLocaleDateString('es-CO', {day: '2-digit', month: '2-digit', year: 'numeric'})
+                                    };
+
+                                    Comfama_aggregatedPagosMap.set(key, newEntry);
+                                    successCount++;
                                 }
                             });
                         }
-
-                        const percentage = ((fileIndex + 1) / totalFiles) * 100;
-                        updateProgressBar('pagosProgressBar', 'pagosProgressBarContainer', percentage, `✅ Procesado **${file.name}**. Filas válidas: ${processedRows.toLocaleString()}.`);
-                        resolve({ success: true, rows: processedRows });
-
+                        Comfama_pagosProcessStatus.innerHTML += ` (Rows: ${successCount.toLocaleString()})`;
+                        resolve();
                     },
                     error: (error) => {
-                        console.error(`Error al parsear ${file.name}:`, error);
-                        reject(error);
+                        Comfama_pagosProcessStatus.innerHTML += ` ❌ **ERROR** en **${file.name}**: ${error.message}`;
+                        resolve();
                     }
                 });
             };
-
-            reader.onerror = (error) => {
-                console.error(`Error al leer ${file.name}:`, error);
-                reject(error);
-            };
-
-            reader.readAsText(file);
+            reader.readAsText(file.slice(0, 1024)); // Lee un chunk para determinar el delimitador
         });
     }
 
-    /**
-     * Inicia el proceso de consolidación de Pagos (Comfama).
-     */
-    async function executeComfamaPagosProcess(files) {
-        dataFilePagos = dataFilePagos || [];
-        totalRowsCount = 0;
-        processedRowsCount = 0;
-        
-        pagosStatus.className = 'alert alert-warning py-1';
-        pagosStatus.textContent = `⚙️ Iniciando consolidación de ${files.length} archivos de Pagos...`;
-        pagosProcessStatus.style.display = 'block';
-        updateProgressBar('pagosProgressBar', 'pagosProgressBarContainer', 0, 'Iniciando proceso...');
+    async function Comfama_executeAsignacionesPreProcess(files) {
+        Comfama_processedDataAsignaciones = [];
+        Comfama_mergedData = null;
+        Comfama_aggregatedAsignacionesMap.clear();
 
-        try {
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const result = await processComfamaPagosFile(file, i, files.length);
-                totalRowsCount += result.rows;
-            }
+        Comfama_asignacionesProgressBarContainer.style.display = 'block';
+        Comfama_dedupeStatus.style.display = 'block';
+        Comfama_dedupeStatus.textContent = 'Iniciando limpieza de asignaciones...';
 
-            if (dataFilePagos.length > 0) {
-                await saveDataToCache(CACHE_KEY_PAGOS, dataFilePagos);
-                pagosStatus.textContent = `✅ Consolidación de Pagos y Caché completados. Total de registros consolidados: ${dataFilePagos.length.toLocaleString()}.`;
-                pagosStatus.className = 'alert alert-success py-1';
-                folderInput.disabled = false;
-            } else {
-                pagosStatus.textContent = '⚠️ Consolidación completada, pero no se encontraron registros válidos.';
-                pagosStatus.className = 'alert alert-warning py-1';
-                folderInput.disabled = true;
-            }
-            updateProgressBar('pagosProgressBar', 'pagosProgressBarContainer', 100, 'Consolidación de Pagos Finalizada.', true);
-        } catch (error) {
-            console.error("Error en el proceso de Pagos:", error);
-            pagosStatus.textContent = '❌ Error grave durante el proceso de Pagos. Revise la consola.';
-            pagosStatus.className = 'alert alert-danger py-1';
-            updateProgressBar('pagosProgressBar', 'pagosProgressBarContainer', 100, 'Error en el Proceso de Pagos.', true, true);
-            folderInput.disabled = true;
+        const totalFiles = files.length;
+        let processedFiles = 0;
+
+        for (const file of files) {
+            await Comfama_processAsignacionesFile(file, processedFiles, totalFiles);
+            processedFiles++;
+            const progress = Math.round((processedFiles / totalFiles) * 100);
+            Comfama_asignacionesProgressBar.style.width = `${progress}%`;
+            Comfama_asignacionesProgressBar.textContent = `${progress}%`;
+        }
+
+        Comfama_asignacionesProgressBarContainer.style.display = 'none';
+        Comfama_dedupeStatus.style.display = 'none';
+
+        if (Comfama_processedDataAsignaciones.length > 0) {
+            Comfama_anexoStatus.textContent = `✅ Limpieza de asignaciones finalizada. Total de registros válidos: ${Comfama_processedDataAsignaciones.length.toLocaleString()}.`;
+            Comfama_anexoStatus.className = 'alert alert-success py-1';
+            
+            Comfama_executeMerge();
+        } else {
+            Comfama_anexoStatus.textContent = `⚠️ Limpieza de asignaciones finalizada. No se encontraron registros válidos.`;
+            Comfama_anexoStatus.className = 'alert alert-warning py-1';
+            Comfama_downloadMergeBtn.style.display = 'none';
         }
     }
 
-    /**
-     * Procesa un único archivo de Asignaciones (Comfama), cruza con pagos y realiza deduplicación.
-     */
-    function processComfamaAsignacionesFile(file, fileIndex, totalFiles) {
+    function Comfama_processAsignacionesFile(file, fileIndex, totalFiles) {
         return new Promise((resolve, reject) => {
-            let processedRows = 0;
-            const pagosMap = new Map();
-            dataFilePagos.forEach(row => {
-                const key = cleanNumeroDocumentoComfama(row[COL_DOC_PAGOS]) + '|' + String(row[COL_MES_PAGOS] || '').trim();
-                pagosMap.set(key, row);
-            });
-
+            Comfama_dedupeStatus.innerHTML = `⚙️ Limpiando Asignaciones... (${fileIndex + 1}/${totalFiles}) - **${file.name}**`;
+            
             const reader = new FileReader();
+            reader.onload = (e) => {
+                const fileChunk = e.target.result.substring(0, 1024);
+                const delimiter = determineDelimiter(fileChunk);
 
-            reader.onload = (event) => {
-                const chunk = event.target.result.substring(0, 1024 * 10); 
-                const delimiter = determineDelimiter(chunk);
-                
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
                     delimiter: delimiter,
-                    worker: true,
                     complete: (results) => {
                         let data = results.data;
-                        const errors = results.errors;
+                        let successCount = 0;
 
-                        if (errors.length > 0) {
-                            console.error(`Errores en el archivo ${file.name}:`, errors);
-                        }
-                        
-                        // Encontrando las columnas clave
-                        const originalDocKey = results.meta.fields.find(field => cleanStringAzzorti(field).includes(cleanStringAzzorti(COL_DOC_PRIN)));
-                        const originalMesKey = results.meta.fields.find(field => cleanStringAzzorti(field).includes(cleanStringAzzorti(COL_MES_PRIN)));
-                        const originalAnioKey = results.meta.fields.find(field => cleanStringAzzorti(field).includes(cleanStringAzzorti(COL_ANIO_PRIN)));
+                        if (data && data.length > 0) {
+                            // Detección de columnas
+                            let originalKeyDoc = results.meta.fields.find(field => (field || '').trim() === Comfama_COL_DOC_PRIN);
+                            let originalKeyMes = results.meta.fields.find(field => (field || '').trim() === Comfama_COL_MES_PRIN);
 
-                        if (!originalDocKey || !originalMesKey || !originalAnioKey) {
-                            dedupeStatus.textContent = `❌ Error en ${file.name}: Faltan columnas clave (Documento, Mes data, Año).`;
-                            resolve({ success: false, rows: 0 });
-                            return;
-                        }
-
-                        if (data.length > 0) {
-                            data = data.map(row => {
-                                const doc = cleanNumeroDocumentoComfama(row[originalDocKey]);
-                                const mes = String(row[originalMesKey] || '').trim();
-                                const anio = String(row[originalAnioKey] || '').trim();
-                                const pagosKey = `${doc}|${mes}`;
-                                const pagosRow = pagosMap.get(pagosKey);
-                                
-                                if (pagosRow) {
-                                    row['Estado_Cruce_Pagos'] = 'CRUZADO';
-                                    row[COL_FECHA_MAX_PAGOS] = pagosRow[COL_FECHA_MOV];
-                                    row[COL_VALOR_PAGADO] = pagosRow[COL_VALOR_PAGADO];
-                                } else {
-                                    row['Estado_Cruce_Pagos'] = 'PENDIENTE';
-                                    row[COL_FECHA_MAX_PAGOS] = '';
-                                    row[COL_VALOR_PAGADO] = 0;
-                                }
-
-                                row[COL_DOC_PRIN] = doc; // Estandarizamos el documento
-                                row[COL_FECHA_PRIN] = file.name; // Agregamos nombre de archivo
-                                
-                                processedRows++;
-                                return row;
-                            }).filter(row => row[originalDocKey] && row[originalMesKey]); 
+                            if (!originalKeyDoc || !originalKeyMes) {
+                                Comfama_dedupeStatus.innerHTML += ` ❌ **ERROR:** Archivo **${file.name}** omitido. No se encontraron las columnas de Asignaciones: "${Comfama_COL_DOC_PRIN}" y "${Comfama_COL_MES_PRIN}". (Delimitador: ${delimiter})`;
+                                return resolve(); 
+                            }
                             
-                            processedDataAsignaciones.push(...data);
+                            data.forEach(row => {
+                                const doc = String(row[originalKeyDoc] || '').trim();
+                                const mes = String(row[originalKeyMes] || '').trim();
+
+                                if (doc && mes) {
+                                    const key = `${doc}|${mes}`;
+                                    // Conservar el registro de la carpeta que se cargó de último (el más reciente)
+                                    if (!Comfama_aggregatedAsignacionesMap.has(key)) {
+                                        // Agregar metadatos
+                                        row[Comfama_COL_FECHA_PRIN] = file.name;
+                                        row[Comfama_COL_ANIO_PRIN] = new Date().getFullYear().toString(); // Asume el año actual
+                                        Comfama_aggregatedAsignacionesMap.set(key, row);
+                                        Comfama_processedDataAsignaciones.push(row);
+                                        successCount++;
+                                    }
+                                }
+                            });
                         }
-
-                        const percentage = ((fileIndex + 1) / totalFiles) * 100;
-                        updateProgressBar('asignacionesProgressBar', 'asignacionesProgressBarContainer', percentage, `✅ Procesado **${file.name}**. Registros: ${data.length.toLocaleString()}.`);
-                        resolve({ success: true, rows: data.length });
-
+                        Comfama_dedupeStatus.innerHTML += ` (Rows: ${successCount.toLocaleString()})`;
+                        resolve();
                     },
                     error: (error) => {
-                        console.error(`Error al parsear ${file.name}:`, error);
-                        reject(error);
+                        Comfama_dedupeStatus.innerHTML += ` ❌ **ERROR** en **${file.name}**: ${error.message}`;
+                        resolve();
                     }
                 });
             };
-
-            reader.onerror = (error) => {
-                console.error(`Error al leer ${file.name}:`, error);
-                reject(error);
-            };
-
-            reader.readAsText(file);
+            reader.readAsText(file.slice(0, 1024));
         });
     }
 
-    /**
-     * Inicia el proceso de Asignaciones (Comfama), deduplicación y llama a la fusión final.
-     */
-    async function executeComfamaAsignacionesPreProcess(files) {
-        processedDataAsignaciones = [];
-        mergedData = null;
-        
-        anexoStatus.className = 'alert alert-warning py-1';
-        anexoStatus.textContent = `⚙️ Iniciando procesamiento de ${files.length} archivos de Asignaciones...`;
-        dedupeStatus.style.display = 'block';
-        updateProgressBar('asignacionesProgressBar', 'asignacionesProgressBarContainer', 0, 'Iniciando proceso de cruce...');
-
-        try {
-            for (let i = 0; i < files.length; i++) {
-                await processComfamaAsignacionesFile(files[i], i, files.length);
-            }
-            
-            updateProgressBar('asignacionesProgressBar', 'asignacionesProgressBarContainer', 100, 'Procesamiento de Asignaciones Finalizado. Iniciando Cruce Final...', true);
-            
-            // Lógica de Deduplicación y Merging
-            await executeComfamaMerge();
-            
-        } catch (error) {
-            console.error("Error en el proceso de Asignaciones:", error);
-            anexoStatus.textContent = '❌ Error grave durante el proceso de Asignaciones. Revise la consola.';
-            anexoStatus.className = 'alert alert-danger py-1';
-            updateProgressBar('asignacionesProgressBar', 'asignacionesProgressBarContainer', 100, 'Error en el Proceso de Asignaciones.', true, true);
-        }
-    }
-
-    /**
-     * Realiza el cruce final y deduplicación de Asignaciones (Comfama).
-     */
-    async function executeComfamaMerge() {
-        if (!processedDataAsignaciones || processedDataAsignaciones.length === 0) {
-            dedupeStatus.textContent = '⚠️ No hay datos de Asignaciones para consolidar.';
-            dedupeStatus.className = 'alert alert-warning py-1';
-            downloadMergeBtn.style.display = 'none';
+    function Comfama_executeMerge() {
+        if (!Comfama_dataFilePagos || Comfama_dataFilePagos.length === 0) {
+            alert("No hay datos de pagos en caché. Por favor, complete el Paso 1.");
             return;
         }
 
-        dedupeStatus.textContent = `⚙️ Realizando deduplicación en ${processedDataAsignaciones.length.toLocaleString()} registros...`;
-        
-        const uniqueKeys = new Set();
-        const finalData = [];
-        
-        // Deduplicación por Documento + Mes data + Año
-        processedDataAsignaciones.forEach(row => {
-            const doc = cleanNumeroDocumentoComfama(row[COL_DOC_PRIN]);
-            const mes = String(row[COL_MES_PRIN] || '').trim();
-            const anio = String(row[COL_ANIO_PRIN] || '').trim();
-            const key = `${doc}|${mes}|${anio}`;
+        if (!Comfama_processedDataAsignaciones || Comfama_processedDataAsignaciones.length === 0) {
+            alert("No hay datos de asignaciones procesados. Por favor, cargue la carpeta en el Paso 2.");
+            return;
+        }
+
+        Comfama_anexoStatus.textContent = '⚙️ Iniciando cruce de datos (Asignaciones LEFT JOIN Pagos)...';
+        Comfama_anexoStatus.className = 'alert alert-info py-1';
+
+        const pagosMap = new Map();
+        Comfama_dataFilePagos.forEach(row => {
+            const key = `${row[Comfama_COL_DOC_PAGOS]}|${row[Comfama_COL_MES_PAGOS]}`;
+            pagosMap.set(key, row);
+        });
+
+        Comfama_mergedData = Comfama_processedDataAsignaciones.map(asignacion => {
+            const doc = String(asignacion[Comfama_COL_DOC_PRIN] || '').trim();
+            const mes = String(asignacion[Comfama_COL_MES_PRIN] || '').trim();
+            const key = `${doc}|${mes}`;
             
-            if (!uniqueKeys.has(key)) {
-                uniqueKeys.add(key);
-                finalData.push(row);
+            const pagoMatch = pagosMap.get(key);
+
+            if (pagoMatch) {
+                return {
+                    ...asignacion,
+                    [Comfama_COL_VALOR_PAGADO]: pagoMatch[Comfama_COL_VALOR_PAGADO],
+                    [Comfama_COL_FECHA_MAX_PAGOS]: pagoMatch[Comfama_COL_FECHA_MAX_PAGOS],
+                    'Match_Pagos': 'SI'
+                };
+            } else {
+                return {
+                    ...asignacion,
+                    [Comfama_COL_VALOR_PAGADO]: 0,
+                    [Comfama_COL_FECHA_MAX_PAGOS]: 'N/A',
+                    'Match_Pagos': 'NO'
+                };
             }
         });
-        
-        mergedData = finalData;
 
-        dedupeStatus.textContent = `✅ Cruce y Deduplicación Finalizados. Registros Únicos: ${finalData.length.toLocaleString()}.`;
-        dedupeStatus.className = 'alert alert-success py-1';
-        anexoStatus.textContent = `✅ Proceso Completado. Registros listos para descarga.`;
-        anexoStatus.className = 'alert alert-success py-1';
-        downloadMergeBtn.style.display = 'inline-block';
+        Comfama_anexoStatus.textContent = `✅ Cruce de datos finalizado. Registros finales: ${Comfama_mergedData.length.toLocaleString()}.`;
+        Comfama_anexoStatus.className = 'alert alert-success py-1';
+        Comfama_downloadMergeBtn.style.display = 'block';
     }
+    
+    // --- EVENT LISTENERS COMFAMA ---
+    document.addEventListener('DOMContentLoaded', () => {
+        Comfama_pagosFolderInput.addEventListener('change', async (event) => {
+            const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
+            if (files.length === 0) {
+                Comfama_pagosStatus.textContent = 'No se encontraron archivos CSV/TXT válidos en la carpeta.';
+                Comfama_pagosStatus.className = 'alert alert-danger py-1';
+                return;
+            }
+            Comfama_dataFilePagos = null; 
+            Comfama_folderInput.disabled = true; 
+            Comfama_downloadMergeBtn.style.display = 'none'; 
+            await Comfama_executePagosProcess(files);
+        });
+
+        Comfama_folderInput.addEventListener('change', async (event) => {
+            if (Comfama_folderInput.disabled || !Comfama_dataFilePagos) {
+                Comfama_anexoStatus.textContent = '⚠️ Debe completar el Paso 1 (Pagos) y esperar a que la data esté en caché.';
+                Comfama_anexoStatus.className = 'alert alert-danger py-1';
+                return;
+            }
+
+            const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
+            if (files.length === 0) {
+                Comfama_anexoStatus.textContent = 'No se encontraron archivos CSV/TXT válidos en la carpeta.';
+                Comfama_anexoStatus.className = 'alert alert-danger py-1';
+                return;
+            }
+            
+            Comfama_anexoStatus.textContent = `Archivos de Asignaciones listos. Iniciando proceso...`;
+            Comfama_anexoStatus.className = 'alert alert-info py-1';
+            
+            Comfama_downloadMergeBtn.style.display = 'none';
+            
+            await Comfama_executeAsignacionesPreProcess(files);
+        });
+    });
+
 
     // ----------------------------------------------------------------------
-    // --- LÓGICA AZZORTI (Extracción, Limpieza y Cruces) ---
+    // --- LÓGICA AZZORTI (Index (4).html) - Prefijado con Azzorti_ ---
     // ----------------------------------------------------------------------
+
+    const Azzorti_folderInput = document.getElementById('azzortiFolderInput');
+    const Azzorti_status = document.getElementById('azzortiStatus');
+    const Azzorti_processBtn = document.getElementById('azzortiProcessBtn');
+    const Azzorti_processStatus = document.getElementById('azzortiProcessStatus');
+    const Azzorti_progressBar = document.getElementById('azzortiProgressBar');
+    const Azzorti_progressBarContainer = document.getElementById('azzortiProgressBarContainer');
+    const Azzorti_downloadButtons = document.getElementById('azzortiDownloadButtons');
+    const Azzorti_cierreCampanaStatus = document.getElementById('cierreCampanaStatus');
+
+    // Claves de identificación para el cruce (Azzorti)
+    const Azzorti_KEY_DEUD = 'NUMERO IDENTIFICACION'; 
+    const Azzorti_KEY_OBLI = 'NUM. IDENTIFICACION'; 
+    const Azzorti_KEY_PAGOS = 'NUM. IDENTIFICACION'; 
+    const Azzorti_KEY_CRUZE_PAGOS = 'NUMERO IDENTIFICACION'; 
+    
+    let Azzorti_files = {
+        'Notas': [],
+        'Pagos': [],
+        'Deud': [],
+        'Obli': []
+    };
+    
+    let Azzorti_consolidatedData = {
+        'Notas': null,
+        'Pagos': null,
+        'Deud': null,
+        'Obli': null,
+        'Cruze': null, // Cruce D vs O + Salida
+        'PagosCruze': null, // Cruce Pagos (Left) vs Cruze Principal + Validador + AGREGACIÓN APTO
+        'CruzePagosFinal': null, // Cruce Final (Cruze Principal Left Join Pagos Agregados APTO) + Saldo
+        'CruzeNotasFinal': null // NUEVO: Cruce Notas (Left Join, Dedupe, Filter) vs Consolidado Final
+    };
+    
+    // Almacenará los datos del CSV de Cierres (Map<Campanas|Corte, Salida>)
+    let Azzorti_cierreCampanaMap = new Map(); 
+    
+    // Columnas a eliminar del resultado final
+    const Azzorti_COLUMNS_TO_DELETE = [
+        'Part_0', 'Part_1', 'Part_2', 'Part_3', 'Part_4', '_1', '_2', '_3'
+    ];
+    
+    // Mapeo para renombrar columnas de metadatos (Parte de la lógica interna de los archivos TXT)
+    const Azzorti_RENAME_MAP = {
+        'Part_5': 'Campanas', 
+        'Part_6': 'Corte',
+        'Part_7': 'Fecha Ingreso'
+    };
+    
+    // Columnas a traer del archivo principal (Cruze Deudas vs Obligaciones) al cruzar con Pagos
+    const Azzorti_CRUZE_COLUMNS_TO_IMPORT = [
+        'Campanas', 
+        'Fecha Ingreso',
+        'Etapa', 
+        'Salida'
+    ];
 
     /**
      * Limpia una cadena (elimina acentos, ñ, caracteres especiales y espacios).
-     * RENOMBRADA a cleanStringAzzorti para evitar conflictos.
      */
-    function cleanStringAzzorti(str) {
+    function Azzorti_cleanString(str) {
         if (!str) return '';
         let cleaned = String(str).replace(/[\r\n]/g, '').trim();
         cleaned = cleaned.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -761,15 +704,10 @@
         return cleaned.toLowerCase();
     }
     
-    // ... (El resto de funciones de Azzorti se mantienen sin cambios o con referencias internas actualizadas a cleanStringAzzorti) ...
-    // NOTA: Para mantener el código manejable, se asume que las funciones internas de Azzorti ya usan cleanStringAzzorti.
-
     /**
      * Estandariza la fecha de Azzorti de MM/DD/YYYY o MM-DD-YYYY a DD/MM/YYYY.
-     * @param {string} dateStr La cadena de fecha a estandarizar.
-     * @returns {string} La fecha en formato DD/MM/YYYY o la cadena original si es inválida.
      */
-    function standardizeDateAzzorti(dateStr) {
+    function Azzorti_standardizeDate(dateStr) {
         if (!dateStr) return '';
         let cleanedStr = String(dateStr).trim().replace(/[ \/\-]/g, '/'); 
         const parts = cleanedStr.split('/');
@@ -790,56 +728,43 @@
     /**
      * Convierte una fecha en formato DD/MM/YYYY a un objeto Date para comparación.
      */
-    function parseDateForValidation(dateStr) {
+    function Azzorti_parseDateDDMMYYYY(dateStr) {
         if (!dateStr) return null;
-
         const parts = String(dateStr).split('/');
         if (parts.length !== 3) return null;
-
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10);
         const year = parseInt(parts[2], 10);
-
         if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-
         const date = new Date(Date.UTC(year, month - 1, day)); 
-        
         if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
             return null;
         }
-
         return date;
     }
 
     /**
-     * NUEVA FUNCIÓN: Convierte una fecha en formato MM/DD/YYYY a un objeto Date para comparación.
+     * Convierte una fecha en formato MM/DD/YYYY a un objeto Date para comparación.
      */
-    function parseDateMMDDYYYY(dateStr) {
+    function Azzorti_parseDateMMDDYYYY(dateStr) {
         if (!dateStr) return null;
-
         const parts = String(dateStr).split('/');
         if (parts.length !== 3) return null;
-
         const month = parseInt(parts[0], 10);
         const day = parseInt(parts[1], 10);
         const year = parseInt(parts[2], 10);
-
         if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-
-        // Date expects (year, monthIndex, day) - Month is 0-indexed
         const date = new Date(Date.UTC(year, month - 1, day)); 
-        
         if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
             return null;
         }
-
         return date;
     }
     
     /**
      * Extrae el número entero de una cadena de izquierda a derecha antes del primer espacio.
      */
-    function extractIntegerIdBeforeSpace(idString) {
+    function Azzorti_extractIntegerIdBeforeSpace(idString) {
         if (!idString) return '';
         const str = String(idString).trim();
         const spaceIndex = str.indexOf(' ');
@@ -852,10 +777,8 @@
     
     /**
      * Extrae el número entero de una cadena de saldo (a la izquierda del primer punto).
-     * @param {string} saldoStr La cadena de saldo, e.g., "12345.00" o "123.456".
-     * @returns {number} El valor entero.
      */
-    function extractIntegerSaldo(saldoStr) {
+    function Azzorti_extractIntegerSaldo(saldoStr) {
         if (!saldoStr) return 0;
         const str = String(saldoStr).trim();
         const parts = str.split('.');
@@ -865,37 +788,37 @@
         return parseInt(numericStr) || 0;
     }
 
-    function classifyAzzortiFile(file) { 
+    function Azzorti_classifyFile(file) { 
         const nameLower = file.name.toLowerCase();
         
         if (nameLower.includes('notas')) {
-            azzortiFiles.Notas.push(file);
+            Azzorti_files.Notas.push(file);
         } else if (nameLower.includes('pagos')) {
-            azzortiFiles.Pagos.push(file);
+            Azzorti_files.Pagos.push(file);
         } else if (nameLower.includes('deud')) {
-            azzortiFiles.Deud.push(file);
+            Azzorti_files.Deud.push(file);
         } else if (nameLower.includes('obli')) {
-            azzortiFiles.Obli.push(file);
+            Azzorti_files.Obli.push(file);
         }
     }
 
     /**
-     * Actualiza solo los contadores de archivos, ya no controla el botón de inicio.
+     * Actualiza los contadores de archivos.
      */
-    function updateAzzortiCounts() { 
-        document.getElementById('azzortiNotesCount').innerHTML = `**Notas:** ${azzortiFiles.Notas.length} archivos`;
-        document.getElementById('azzortiPagosCount').innerHTML = `**Pagos:** ${azzortiFiles.Pagos.length} archivos`;
-        document.getElementById('azzortiDeudCount').innerHTML = `**Deudas:** ${azzortiFiles.Deud.length} archivos`;
-        document.getElementById('azzortiObliCount').innerHTML = `**Obligaciones:** ${azzortiFiles.Obli.length} archivos`;
+    function Azzorti_updateCounts() { 
+        document.getElementById('azzortiNotesCount').innerHTML = `**Notas:** ${Azzorti_files.Notas.length} archivos`;
+        document.getElementById('azzortiPagosCount').innerHTML = `**Pagos:** ${Azzorti_files.Pagos.length} archivos`;
+        document.getElementById('azzortiDeudCount').innerHTML = `**Deudas:** ${Azzorti_files.Deud.length} archivos`;
+        document.getElementById('azzortiObliCount').innerHTML = `**Obligaciones:** ${Azzorti_files.Obli.length} archivos`;
     }
     
     /**
      * Carga y parsea el archivo CSV de Cierres de Campaña. 
      */
-    function loadCierreCampanaFile(file) {
+    function Azzorti_loadCierreCampanaFile(file) {
         return new Promise((resolve) => {
             if (!file) {
-                cierreCampanaMap.clear();
+                Azzorti_cierreCampanaMap.clear();
                 return resolve();
             }
             Papa.parse(file, {
@@ -903,21 +826,24 @@
                 skipEmptyLines: true,
                 delimiter: '|', 
                 complete: (results) => {
-                    cierreCampanaMap.clear();
+                    Azzorti_cierreCampanaMap.clear();
                     let successCount = 0;
                     const data = results.data;
+                    
                     if (!results.meta.fields) { 
-                         cierreCampanaStatus.textContent = '⚠️ CSV de Cierres está vacío o no es un formato de delimitador válido. (Formato: Campañas|Corte|Salida)';
-                         cierreCampanaStatus.className = 'alert alert-warning py-1';
+                         Azzorti_cierreCampanaStatus.textContent = '⚠️ CSV de Cierres está vacío o no es un formato de delimitador válido. (Formato: Campañas|Corte|Salida)';
+                         Azzorti_cierreCampanaStatus.className = 'alert alert-warning py-1';
                          return resolve(); 
                     }
+                    
                     let originalKeyCampanas = null;
                     let originalKeyCorte = null;
                     let originalKeySalida = null;
+                    
                     // Detectar las columnas correctas
                     results.meta.fields.forEach(field => {
                         const originalField = String(field);
-                        const cleanedField = cleanStringAzzorti(originalField); // USO DE cleanStringAzzorti
+                        const cleanedField = Azzorti_cleanString(originalField);
                         if (cleanedField.includes('campan') && originalKeyCampanas === null) {
                             originalKeyCampanas = originalField;
                         } else if (cleanedField.includes('corte') && originalKeyCorte === null) {
@@ -928,37 +854,36 @@
                     });
 
                     if (!originalKeyCampanas || !originalKeyCorte || !originalKeySalida) {
-                        cierreCampanaStatus.textContent = '❌ CSV de Cierres: No se encontraron las columnas requeridas (Campañas, Corte, Salida) o el delimitador "|" es incorrecto.';
-                        cierreCampanaStatus.className = 'alert alert-danger py-1';
-                        return resolve();
+                         Azzorti_cierreCampanaStatus.textContent = '❌ CSV de Cierres: No se encontraron las columnas requeridas (Campañas, Corte, Salida) o el delimitador "|" es incorrecto.';
+                         Azzorti_cierreCampanaStatus.className = 'alert alert-danger py-1';
+                         return resolve(); 
                     }
-
+                    
                     data.forEach(row => {
                         const campana = String(row[originalKeyCampanas] || '').trim();
                         const corte = String(row[originalKeyCorte] || '').trim();
                         const salida = String(row[originalKeySalida] || '').trim();
-
+                        
                         if (campana && corte && salida) {
                             const key = `${campana}|${corte}`;
-                            cierreCampanaMap.set(key, salida);
+                            Azzorti_cierreCampanaMap.set(key, salida);
                             successCount++;
                         }
                     });
 
                     if (successCount > 0) {
-                        cierreCampanaStatus.textContent = `✅ CSV de Cierres cargado. ${successCount.toLocaleString()} claves de cruce listas.`;
-                        cierreCampanaStatus.className = 'alert alert-success py-1';
+                        Azzorti_cierreCampanaStatus.textContent = `✅ CSV de Cierres cargado. ${successCount.toLocaleString()} claves de cruce listas.`;
+                        Azzorti_cierreCampanaStatus.className = 'alert alert-success py-1';
                     } else {
-                        cierreCampanaStatus.textContent = '⚠️ CSV de Cierres cargado, pero no se encontraron filas válidas (Campañas, Corte o Salida vacías en los datos).';
-                        cierreCampanaStatus.className = 'alert alert-warning py-1';
+                        Azzorti_cierreCampanaStatus.textContent = '⚠️ CSV de Cierres cargado, pero no se encontraron filas válidas (Campañas, Corte o Salida vacías en los datos).';
+                        Azzorti_cierreCampanaStatus.className = 'alert alert-warning py-1';
                     }
-
                     resolve();
-                },
+                }, 
                 error: (error) => {
-                    cierreCampanaStatus.textContent = `❌ Error al parsear el CSV de Cierres. Asegúrese de que el delimitador es '|'. (Detalle: ${error.message})`;
-                    cierreCampanaStatus.className = 'alert alert-danger py-1';
-                    cierreCampanaMap.clear();
+                    Azzorti_cierreCampanaStatus.textContent = `❌ Error al parsear el CSV de Cierres. Asegúrese de que el delimitador es '|'. (Detalle: ${error.message})`;
+                    Azzorti_cierreCampanaStatus.className = 'alert alert-danger py-1';
+                    Azzorti_cierreCampanaMap.clear();
                     resolve();
                 }
             });
@@ -968,45 +893,45 @@
     /**
      * Procesa un grupo de archivos Azzorti: consolida, extrae metadatos y calcula Etapa. (MODIFICADO para Notas)
      */
-    function processAzzortiGroup(files, groupName, fileIndexOffset, totalAzzortiFiles) {
+    function Azzorti_processGroup(files, groupName, fileIndexOffset, totalAzzortiFiles) {
         return new Promise((resolve) => {
             if (files.length === 0) {
-                azzortiProcessStatus.innerHTML += ` ⚠️ (Grupo **${groupName}** vacío).`;
+                Azzorti_processStatus.innerHTML += ` ⚠️ (Grupo **${groupName}** vacío).`;
                 return resolve([]);
             }
 
             let consolidatedData = [];
             let currentFileIndex = 0;
-            const idKey = (groupName === 'Deud') ? AZZORTI_KEY_DEUD : (groupName === 'Obli') ? AZZORTI_KEY_OBLI : null;
-
+            
+            const idKey = (groupName === 'Deud') ? Azzorti_KEY_DEUD : (groupName === 'Obli') ? Azzorti_KEY_OBLI : null;
+            
             const processNextFile = () => {
                 if (currentFileIndex >= files.length) {
-                    azzortiProcessStatus.innerHTML += ` ✅ Grupo **${groupName}** completado. Registros: ${consolidatedData.length.toLocaleString()}.`;
+                    Azzorti_processStatus.innerHTML += ` ✅ Grupo **${groupName}** completado. Registros: ${consolidatedData.length.toLocaleString()}.`;
                     return resolve(consolidatedData);
                 }
-
+                
                 const file = files[currentFileIndex];
                 const totalProgressIndex = fileIndexOffset + currentFileIndex + 1;
-
-                azzortiProcessStatus.innerHTML = `⚙️ Consolidando **${groupName}**... (${totalProgressIndex}/${totalAzzortiFiles}) - **${file.name}**.`;
-
+                
+                Azzorti_processStatus.innerHTML = `⚙️ Consolidando **${groupName}**... (${totalProgressIndex}/${totalAzzortiFiles}) - **${file.name}**.`;
+                
                 const filePath = file.webkitRelativePath || file.name;
                 const baseName = filePath.replace(/\.(txt|csv|dat)$/i, '').toLowerCase();
                 const parts = baseName.split('_');
-
                 const metadataObject = {};
                 let rawCortePart = "";
                 let rawFechaIngresoPart = "";
-
+                
                 parts.forEach((part, index) => {
                     const originalKey = `Part_${index}`;
                     const cleanedPart = part.trim();
-
-                    if (COLUMNS_TO_DELETE.includes(originalKey) || COLUMNS_TO_DELETE.includes(`_${index}`)) {
+                    
+                    if (Azzorti_COLUMNS_TO_DELETE.includes(originalKey) || Azzorti_COLUMNS_TO_DELETE.includes(`_${index}`)) {
                         return;
                     }
-
-                    const finalKey = RENAME_MAP[originalKey] || originalKey;
+                    
+                    const finalKey = Azzorti_RENAME_MAP[originalKey] || originalKey;
                     
                     if (groupName !== 'Pagos') {
                         metadataObject[finalKey] = cleanedPart;
@@ -1021,189 +946,378 @@
 
                 let finalCorte = "";
                 let finalEtapa = "";
-                
+
                 if (groupName !== 'Pagos') {
                     const isAdministrativa = (rawCortePart === "");
                     if (isAdministrativa) {
                         finalEtapa = "Administrativa";
-                        finalCorte = "30"; 
+                        finalCorte = "30";
                     } else {
                         finalEtapa = "Comercial";
                         finalCorte = rawCortePart;
                     }
-                    const finalFechaIngreso = standardizeDateAzzorti(rawFechaIngresoPart);
+
+                    const finalFechaIngreso = Azzorti_standardizeDate(rawFechaIngresoPart);
+
                     metadataObject['Corte'] = finalCorte;
                     metadataObject['Etapa'] = finalEtapa;
                     metadataObject['Fecha Ingreso'] = finalFechaIngreso;
                 }
-                
+
                 Papa.parse(file, {
                     // Si es NOTAS o PAGOS, header: false. Si es DEUD/OBLI, header: true.
-                    header: (groupName !== 'Pagos' && groupName !== 'Notas'), 
+                    header: (groupName !== 'Pagos' && groupName !== 'Notas'),
                     skipEmptyLines: true,
                     delimiter: '|',
                     worker: true,
                     complete: (results) => {
                         let fileData = results.data;
-                        let headerRow = null;
 
                         if (fileData && fileData.length > 0) {
-                            
-                            if (groupName === 'Notas' || groupName === 'Pagos') {
-                                // Para TXT sin encabezado, el PapaParse asume que la primera fila son datos. 
-                                // Debemos agregar un encabezado simple o usar el mapeo
-                                headerRow = ['FIELD1', 'FIELD2', 'FIELD3', 'FIELD4', 'FIELD5', 'FIELD6', 'FIELD7', 'FIELD8', 'FIELD9', 'FIELD10', 'FIELD11', 'FIELD12', 'FIELD13', 'FIELD14', 'FIELD15', 'FIELD16', 'FIELD17', 'FIELD18', 'FIELD19', 'FIELD20', 'FIELD21', 'FIELD22', 'FIELD23', 'FIELD24', 'FIELD25', 'FIELD26', 'FIELD27', 'FIELD28', 'FIELD29', 'FIELD30'];
-                                
-                                // Mapeamos el array de arrays a un array de objetos con el encabezado.
-                                fileData = fileData.map(rowArray => {
-                                    const rowObject = {};
-                                    headerRow.forEach((field, index) => {
-                                        rowObject[field] = rowArray[index];
-                                    });
-                                    return rowObject;
-                                });
-                            }
-                            
-                            // Si es PAGOS, creamos la columna de ID a partir de FIELD5 y FIELD6
-                            if (groupName === 'Pagos') {
-                                // FIELD5: NUMERO IDENTIFICACION, FIELD6: CONCEPTO
-                                fileData = fileData.map(row => {
-                                    row[AZZORTI_KEY_PAGOS] = extractIntegerIdBeforeSpace(row['FIELD5']);
-                                    row['CONCEPTO'] = row['FIELD6'];
-                                    return row;
-                                }).filter(row => row[AZZORTI_KEY_PAGOS] && row[AZZORTI_KEY_PAGOS].length > 0);
-                            }
-
-                            // Si es NOTAS, creamos la columna de ID a partir de FIELD2
-                            if (groupName === 'Notas') {
-                                // FIELD2: NUMERO IDENTIFICACION
-                                fileData = fileData.map(row => {
-                                    row[AZZORTI_KEY_PAGOS] = extractIntegerIdBeforeSpace(row['FIELD2']);
-                                    row['FECHA_NOTA'] = standardizeDateAzzorti(row['FIELD3']);
-                                    return row;
-                                }).filter(row => row[AZZORTI_KEY_PAGOS] && row[AZZORTI_KEY_PAGOS].length > 0);
-                            }
-                            
                             let dataWithMetdata = fileData;
-                            if (groupName !== 'Pagos' && groupName !== 'Notas') {
-                                // Agregar metadatos a cada fila de Deudas/Obligaciones
-                                dataWithMetdata = fileData.map(row => ({
-                                    ...row, 
-                                    ...metadataObject, 
-                                    'ID_LIMPIO': extractIntegerIdBeforeSpace(row[idKey]) 
-                                }));
-                            }
+                            let successCount = 0;
 
+                            if (groupName === 'Pagos') {
+                                // Lógica de Pagos (usa header: false y mapeo por índices)
+                                dataWithMetdata = fileData
+                                    .map(rowArray => {
+                                        const id = String(rowArray[0] || '').trim();
+                                        const rawDate = String(rowArray[1] || '').trim();
+                                        const rawValue = String(rowArray[2] || '').trim();
+
+                                        if (id.length === 0) return null;
+
+                                        const cleanId = Azzorti_extractIntegerIdBeforeSpace(id);
+                                        let numericValue = 0;
+                                        
+                                        try {
+                                            const parts = String(rawValue).split('.');
+                                            numericValue = parseInt(parts[0].replace(/[^0-9]/g, '')) || 0;
+                                        } catch (e) {
+                                            numericValue = 0;
+                                        }
+
+                                        const formattedDate = Azzorti_standardizeDate(rawDate);
+                                        
+                                        if (cleanId.length > 0 && numericValue > 0) {
+                                             successCount++;
+                                             return {
+                                                [Azzorti_KEY_PAGOS]: cleanId,
+                                                'Fecha Pago': formattedDate,
+                                                'Valor Pago': numericValue
+                                             };
+                                        }
+                                        return null;
+
+                                    })
+                                    .filter(row => row !== null);
+
+                            } else if (groupName === 'Notas') {
+                                // Lógica de Notas (usa header: false y mapeo por índices)
+                                dataWithMetdata = fileData
+                                    .map(rowArray => {
+                                        const id = String(rowArray[0] || '').trim();
+                                        const rawDate = String(rowArray[1] || '').trim();
+                                        
+                                        if (id.length === 0) return null;
+
+                                        const cleanId = Azzorti_extractIntegerIdBeforeSpace(id);
+                                        const formattedDate = Azzorti_standardizeDate(rawDate);
+
+                                        if (cleanId.length > 0) {
+                                             successCount++;
+                                             return {
+                                                [Azzorti_KEY_DEUD]: cleanId, // Usamos la misma clave para el cruce futuro
+                                                'Fecha Nota': formattedDate,
+                                                'ID Archivo Nota': file.name
+                                             };
+                                        }
+                                        return null;
+                                    })
+                                    .filter(row => row !== null);
+                            
+                            } else if (groupName === 'Deud' || groupName === 'Obli') {
+                                // Lógica de Deud y Obli (usa header: true y agrega metadatos)
+                                dataWithMetdata = fileData
+                                    .map(row => {
+                                        // Agregar metadatos
+                                        Object.assign(row, metadataObject);
+                                        
+                                        // Estandarizar ID para cruce
+                                        const idKeyCurrent = (groupName === 'Deud') ? Azzorti_KEY_DEUD : Azzorti_KEY_OBLI;
+                                        const rawId = String(row[idKeyCurrent] || '').trim();
+                                        row[idKeyCurrent] = Azzorti_extractIntegerIdBeforeSpace(rawId);
+                                        
+                                        // Agregar Salida desde el Mapa de Cierres (solo para Deud y Obli)
+                                        const keyCierre = `${row.Campanas}|${row.Corte}`;
+                                        row['Salida'] = Azzorti_cierreCampanaMap.get(keyCierre) || '';
+
+                                        if (row[idKeyCurrent]) {
+                                             successCount++;
+                                             return row;
+                                        }
+                                        return null;
+                                    })
+                                    .filter(row => row !== null);
+                            }
+                            
                             consolidatedData.push(...dataWithMetdata);
                         }
 
+                        Azzorti_processStatus.innerHTML += ` (Rows: ${successCount.toLocaleString()})`;
                         currentFileIndex++;
-                        const percentage = ((totalProgressIndex) / totalAzzortiFiles) * 100;
-                        updateProgressBar('azzortiProgressBar', 'azzortiProgressBarContainer', percentage, `Progreso General: ${percentage.toFixed(2)}%`, (percentage === 100));
-                        processNextFile();
+                        
+                        // Usamos setTimeout para evitar bloquear el hilo principal y permitir que se actualice la UI
+                        setTimeout(processNextFile, 0); 
                     },
                     error: (error) => {
-                        console.error(`Error al parsear ${file.name}:`, error);
+                        Azzorti_processStatus.innerHTML += ` ❌ **ERROR** en **${file.name}**: ${error.message}`;
                         currentFileIndex++;
-                        processNextFile();
+                        setTimeout(processNextFile, 0); 
                     }
                 });
             };
-            processNextFile();
+
+            processNextFile(); 
         });
     }
 
-    // ... (El resto de funciones de Azzorti, executeAzzortiConsolidation, crossDeudasAndObligaciones, aggregatePagos, crossPagosPrincipal, crossFinal, crossNotasFinal) ...
-    // Se asume que el resto de las funciones de Azzorti están aquí y han sido adaptadas para usar cleanStringAzzorti.
 
-    // ----------------------------------------------------------------------
-    // --- EVENT LISTENERS (Comfama) ---
-    // ----------------------------------------------------------------------
-    
-    // Comfama: Carga de Pagos
-    pagosFolderInput.addEventListener('change', async (event) => {
-        const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
-        if (files.length === 0) {
-            pagosStatus.textContent = 'No se encontraron archivos CSV/TXT válidos en la carpeta.';
-            pagosStatus.className = 'alert alert-danger py-1';
-            return;
-        }
-        dataFilePagos = null; 
-        folderInput.disabled = true; 
-        downloadMergeBtn.style.display = 'none'; 
-        await executeComfamaPagosProcess(files); // FUNCIÓN RENOMBRADA
-    });
-
-    // Comfama: Carga de Asignaciones
-    folderInput.addEventListener('change', async (event) => {
-        if (folderInput.disabled || !dataFilePagos) {
-            anexoStatus.textContent = '⚠️ Debe completar el Paso 1 (Pagos) y esperar a que la data esté en caché.';
-            anexoStatus.className = 'alert alert-danger py-1';
+    /**
+     * Inicia el proceso de consolidación y cruce de datos de Azzorti.
+     */
+    async function Azzorti_executeConsolidation() {
+        if (Azzorti_files.Deud.length === 0 || Azzorti_files.Obli.length === 0) {
+            alert('Debe cargar al menos un archivo de Deudas y uno de Obligaciones.');
             return;
         }
 
-        const files = Array.from(event.target.files).filter(file => file.size > 0 && (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')));
-        if (files.length === 0) {
-            anexoStatus.textContent = 'No se encontraron archivos CSV/TXT válidos en la carpeta.';
-            anexoStatus.className = 'alert alert-danger py-1';
-            return;
+        Azzorti_processStatus.textContent = 'Iniciando proceso de consolidación...';
+        Azzorti_processStatus.className = 'alert alert-light mt-2 py-1';
+        Azzorti_processStatus.style.display = 'block';
+        Azzorti_progressBarContainer.style.display = 'block';
+        Azzorti_downloadButtons.style.display = 'none';
+
+        // 1. Cargar y Consolidar
+        const totalAzzortiFiles = Object.values(Azzorti_files).flat().length;
+        let fileIndexOffset = 0;
+
+        try {
+            // Grupo Pagos
+            Azzorti_consolidatedData.Pagos = await Azzorti_processGroup(Azzorti_files.Pagos, 'Pagos', fileIndexOffset, totalAzzortiFiles);
+            fileIndexOffset += Azzorti_files.Pagos.length;
+
+            // Grupo Deud
+            Azzorti_consolidatedData.Deud = await Azzorti_processGroup(Azzorti_files.Deud, 'Deud', fileIndexOffset, totalAzzortiFiles);
+            fileIndexOffset += Azzorti_files.Deud.length;
+
+            // Grupo Obli
+            Azzorti_consolidatedData.Obli = await Azzorti_processGroup(Azzorti_files.Obli, 'Obli', fileIndexOffset, totalAzzortiFiles);
+            fileIndexOffset += Azzorti_files.Obli.length;
+
+            // Grupo Notas
+            Azzorti_consolidatedData.Notas = await Azzorti_processGroup(Azzorti_files.Notas, 'Notas', fileIndexOffset, totalAzzortiFiles);
+            // fileIndexOffset += Azzorti_files.Notas.length; // No es necesario para el progreso final
+
+            Azzorti_processStatus.innerHTML = '⚙️ Iniciando Cruces de Datos...';
+
+            // 2. Cruce Deudas vs Obligaciones (CRUCE)
+            const deudasMap = new Map();
+            Azzorti_consolidatedData.Deud.forEach(row => {
+                const key = row[Azzorti_KEY_DEUD];
+                if (!deudasMap.has(key)) {
+                    deudasMap.set(key, row);
+                }
+            });
+
+            Azzorti_consolidatedData.Cruze = Azzorti_consolidatedData.Obli.map(obliRow => {
+                const key = obliRow[Azzorti_KEY_OBLI];
+                const deudMatch = deudasMap.get(key);
+                
+                // Conservar todas las columnas de Obli y agregar Saldo_Deuda
+                const newRow = { ...obliRow };
+                
+                if (deudMatch) {
+                    newRow['Saldo_Deuda'] = Azzorti_extractIntegerSaldo(deudMatch['SALDO_TOTAL']);
+                    newRow['Match_Deuda'] = 'SI';
+                    // Conservar la fecha de ingreso más antigua
+                    const dateObli = Azzorti_parseDateDDMMYYYY(obliRow['Fecha Ingreso']);
+                    const dateDeud = Azzorti_parseDateDDMMYYYY(deudMatch['Fecha Ingreso']);
+                    if (dateDeud && (!dateObli || dateDeud < dateObli)) {
+                        newRow['Fecha Ingreso'] = deudMatch['Fecha Ingreso'];
+                    }
+                } else {
+                    newRow['Saldo_Deuda'] = 0;
+                    newRow['Match_Deuda'] = 'NO';
+                }
+
+                // Calcular Saldo_Final_Obli
+                const saldoTotalObli = Azzorti_extractIntegerSaldo(obliRow['SALDO TOTAL']);
+                newRow['Saldo_Final_Obli'] = saldoTotalObli - newRow['Saldo_Deuda'];
+                
+                return newRow;
+            });
+            Azzorti_processStatus.innerHTML += '<br>✅ Cruce D vs O (Cruze Principal) listo.';
+            
+            // 3. Cruce Pagos vs Cruce Principal (PagosCruze)
+            const pagosMap = new Map();
+            Azzorti_consolidatedData.Pagos.forEach(row => {
+                const key = row[Azzorti_KEY_PAGOS];
+                if (!pagosMap.has(key)) {
+                    pagosMap.set(key, { 'Total Pagado': 0, 'Fecha Max Pago': '1/1/1900' });
+                }
+                const currentEntry = pagosMap.get(key);
+                
+                // Acumulación de pagos
+                currentEntry['Total Pagado'] += row['Valor Pago'];
+                
+                // Actualización de fecha máxima
+                const currentDate = Azzorti_parseDateDDMMYYYY(row['Fecha Pago']);
+                const maxDate = Azzorti_parseDateDDMMYYYY(currentEntry['Fecha Max Pago']);
+                if (currentDate && currentDate > maxDate) {
+                    currentEntry['Fecha Max Pago'] = row['Fecha Pago'];
+                }
+                
+            });
+
+            Azzorti_consolidatedData.PagosCruze = Azzorti_consolidatedData.Cruze.map(principalRow => {
+                const key = principalRow[Azzorti_KEY_CRUZE_PAGOS];
+                const pagoMatch = pagosMap.get(key);
+                
+                const newRow = { ...principalRow };
+                
+                newRow['Total Pagado'] = pagoMatch ? pagoMatch['Total Pagado'] : 0;
+                newRow['Fecha Max Pago'] = pagoMatch ? pagoMatch['Fecha Max Pago'] : 'N/A';
+                
+                // Calcular Saldo_Final_Pagos
+                const saldoObli = newRow['Saldo_Final_Obli'] || 0;
+                newRow['Saldo_Final_Pagos'] = saldoObli - newRow['Total Pagado'];
+                
+                // Determinar el Validador
+                const validador = (saldoObli > 0 && newRow['Total Pagado'] > 0) ? 'SI' : 'NO';
+                newRow['Validador_Pagos'] = validador;
+                
+                // Determinar APTO (solo si Saldo_Final_Pagos > 0)
+                newRow['APTO'] = (newRow['Saldo_Final_Pagos'] > 0) ? 'SI' : 'NO';
+                
+                return newRow;
+            });
+            Azzorti_processStatus.innerHTML += '<br>✅ Cruce Pagos vs Principal listo.';
+            
+            // 4. Cruce Final (Cruze Pagos Final)
+            Azzorti_consolidatedData.CruzePagosFinal = Azzorti_consolidatedData.PagosCruze.filter(row => row['APTO'] === 'SI');
+
+            // 5. Cruce Notas vs Consolidado Final (CruzeNotasFinal)
+            const finalConsolidadoMap = new Map();
+            Azzorti_consolidatedData.CruzePagosFinal.forEach(row => {
+                finalConsolidadoMap.set(row[Azzorti_KEY_CRUZE_PAGOS], row);
+            });
+            
+            Azzorti_consolidatedData.CruzeNotasFinal = Azzorti_consolidatedData.Notas.map(notaRow => {
+                const key = notaRow[Azzorti_KEY_DEUD];
+                const finalMatch = finalConsolidadoMap.get(key);
+                
+                const newRow = { ...notaRow }; // Empezamos con los datos de la nota
+                
+                if (finalMatch) {
+                    // Importar columnas del cruce principal
+                    Azzorti_CRUZE_COLUMNS_TO_IMPORT.forEach(col => {
+                        newRow[`Principal_${col}`] = finalMatch[col] || '';
+                    });
+                    newRow['Principal_Saldo_Final'] = finalMatch['Saldo_Final_Pagos'];
+                    newRow['Match_Final'] = 'SI';
+                } else {
+                    newRow['Match_Final'] = 'NO';
+                }
+                
+                return newRow;
+            }).filter(row => row['Match_Final'] === 'SI'); // Solo se quedan las notas que matchean
+
+            // Deduplicación y filtro de Notas (Quedarse con la más antigua y única)
+            const uniqueNotesMap = new Map();
+            Azzorti_consolidatedData.CruzeNotasFinal.forEach(row => {
+                const id = row[Azzorti_KEY_DEUD];
+                const dateNote = Azzorti_parseDateDDMMYYYY(row['Fecha Nota']);
+                
+                if (!uniqueNotesMap.has(id)) {
+                    uniqueNotesMap.set(id, row);
+                } else {
+                    const existingRow = uniqueNotesMap.get(id);
+                    const existingDate = Azzorti_parseDateDDMMYYYY(existingRow['Fecha Nota']);
+                    
+                    // Si la fecha de la nota actual es más antigua, reemplaza
+                    if (dateNote && existingDate && dateNote < existingDate) {
+                        uniqueNotesMap.set(id, row);
+                    }
+                }
+            });
+
+            Azzorti_consolidatedData.CruzeNotasFinal = Array.from(uniqueNotesMap.values());
+            Azzorti_processStatus.innerHTML += '<br>✅ Cruce Notas vs Consolidado Final listo.';
+            
+            
+            // 6. Reporte Final
+            Azzorti_processStatus.innerHTML = `✅ Proceso Finalizado. Registros en Consolidado Final: **${Azzorti_consolidatedData.CruzePagosFinal.length.toLocaleString()}**.`;
+            Azzorti_processStatus.className = 'alert alert-success mt-2 py-1';
+            
+            // Habilitar todos los botones de descarga
+            const allDownloadButtons = document.querySelectorAll('#azzortiDownloadButtons button');
+            allDownloadButtons.forEach(btn => btn.disabled = false);
+            Azzorti_downloadButtons.style.display = 'flex';
+            
+            Azzorti_progressBarContainer.style.display = 'none';
+
+        } catch (e) {
+            Azzorti_processStatus.innerHTML = `❌ **ERROR CRÍTICO** durante la consolidación o cruce: ${e.message}`;
+            Azzorti_processStatus.className = 'alert alert-danger mt-2 py-1';
+            Azzorti_progressBarContainer.style.display = 'none';
+            console.error(e);
         }
-        
-        anexoStatus.textContent = `Archivos de Asignaciones listos. Iniciando proceso...`;
-        anexoStatus.className = 'alert alert-info py-1';
-        
-        downloadMergeBtn.style.display = 'none';
-        
-        await executeComfamaAsignacionesPreProcess(files); // FUNCIÓN RENOMBRADA
-    });
+    }
 
-    // ----------------------------------------------------------------------
-    // --- EVENT LISTENERS (Azzorti) ---
-    // ----------------------------------------------------------------------
 
-    // Azzorti: Carga de Carpeta Principal
-    azzortiFolderInput.addEventListener('change', async (event) => {
-        const files = Array.from(event.target.files);
-        azzortiFiles = { 'Notas': [], 'Pagos': [], 'Deud': [], 'Obli': [] };
-        azzortiConsolidatedData = {
-            'Notas': null, 'Pagos': null, 'Deud': null, 'Obli': null, 'Cruze': null, 
-            'PagosCruze': null, 'CruzePagosFinal': null, 'CruzeNotasFinal': null
-        };
-        azzortiDownloadButtons.style.display = 'none';
-        updateAzzortiCounts();
-        azzortiStatus.textContent = `⚙️ ${files.length} archivos detectados. Clasificando...`;
-        azzortiStatus.className = 'alert alert-warning py-1';
-        let cierreCampanaFile = null;
+    /**
+     * Controlador principal de carga de carpeta de Azzorti.
+     */
+    async function Azzorti_processFileHandler(event) {
+        Azzorti_files = { 'Notas': [], 'Pagos': [], 'Deud': [], 'Obli': [] };
+        Azzorti_cierreCampanaMap.clear();
 
-        files.forEach(file => {
-            const nameLower = file.name.toLowerCase();
-            if (file.size > 0 && nameLower.endsWith('.csv') && nameLower.includes('cierres')) {
-                cierreCampanaFile = file;
-            } else if (file.size > 0 && (nameLower.endsWith('.txt') || nameLower.endsWith('.csv') || nameLower.endsWith('.dat'))) {
-                classifyAzzortiFile(file);
+        Azzorti_status.textContent = 'Clasificando archivos...';
+        Azzorti_status.className = 'alert alert-info py-1';
+        Azzorti_downloadButtons.style.display = 'none';
+        
+        const files = Array.from(event.target.files).filter(file => file.size > 0);
+        let cierreCsvFile = null;
+
+        for (const file of files) {
+            if (file.name.toLowerCase() === 'cierres.csv') {
+                cierreCsvFile = file;
+            } else if (file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.dat')) {
+                Azzorti_classifyFile(file);
             }
-        });
-
-        updateAzzortiCounts();
-        
-        if (azzortiFiles.Deud.length === 0 || azzortiFiles.Obli.length === 0) {
-            azzortiStatus.textContent = '❌ ERROR: Faltan archivos clave (Deud y/u Obli) para iniciar el proceso.';
-            azzortiStatus.className = 'alert alert-danger py-1';
-            return;
         }
-
-        // Cargar archivo de Cierres
-        await loadCierreCampanaFile(cierreCampanaFile);
-
-        // Iniciar el proceso de consolidación automáticamente (executeAzzortiConsolidation debe estar definido)
-        azzortiStatus.textContent = `✅ Clasificación completada. Iniciando consolidación...`;
-        azzortiStatus.className = 'alert alert-success py-1';
-        azzortiProcessStatus.style.display = 'block';
-        updateProgressBar('azzortiProgressBar', 'azzortiProgressBarContainer', 0, 'Iniciando consolidación de grupos...');
         
-        // await executeAzzortiConsolidation(); // La función completa de Azzorti debe ser llamada aquí.
-    });
+        Azzorti_updateCounts();
+        Azzorti_loadCierreCampanaFile(cierreCsvFile); // Cargar Cierres de Campaña
 
+        const totalFiles = Object.values(Azzorti_files).flat().length;
+
+        if (Azzorti_files.Deud.length > 0 && Azzorti_files.Obli.length > 0 && totalFiles > 0) {
+            Azzorti_status.textContent = `Clasificación finalizada. Archivos listos para procesar: ${totalFiles} en total. Iniciando Consolidación Automática...`;
+            Azzorti_status.className = 'alert alert-success py-1';
+            await Azzorti_executeConsolidation();
+        } else {
+            Azzorti_status.textContent = '⚠️ Clasificación finalizada. Asegúrese de cargar archivos en las carpetas de Deudas, Obligaciones y Cierres.csv.';
+            Azzorti_status.className = 'alert alert-warning py-1';
+        }
+    }
+
+    // --- EVENT LISTENERS AZZORTI ---
+    document.addEventListener('DOMContentLoaded', () => {
+        Azzorti_folderInput.addEventListener('change', Azzorti_processFileHandler);
+    });
+    
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
